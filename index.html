@@ -1,0 +1,3093 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Micuadre - POS Offline v3.7</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <!-- ICONO DEL SISTEMA (FAVICON) -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23ec4899'/%3E%3Ctext x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'%3EM%3C/text%3E%3C/svg%3E">
+    <!-- LIBRERÍA PARA PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- LIBRERÍA PARA GRÁFICOS (Chart.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* --- ESTILOS CSS (DISEÑO) - VERSIÓN COMPACTA --- */
+        :root {
+            --color-dark: #0f172a;        /* Slate 900 */
+            --color-dark-light: #1e293b; /* Slate 800 */
+            --color-bg: #f1f5f9;         /* Slate 100 */
+            --color-white: #ffffff;
+            --color-accent: #ec4899;     /* Pink 500 */
+            --color-accent-hover: #db2777;
+            --color-text-main: #334155;
+            --color-text-muted: #64748b;
+            --color-danger: #ef4444;
+            --color-success: #22c55e;
+            --color-warning: #f59e0b;
+            --color-wholesale: #d97706;  /* Amber 600 for Wholesale */
+            --color-border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --radius: 8px; /* Reduced radius for compact look */
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        
+        body { background-color: var(--color-bg); color: var(--color-text-main); height: 100vh; display: flex; overflow: hidden; font-size: 14px; } /* Base font size reduced */
+
+        /* Iconos simples con SVG */
+        .icon { width: 18px; height: 18px; vertical-align: middle; stroke: currentColor; stroke-width: 2; fill: none; }
+        
+        /* Layout Principal */
+        aside { width: 180px; background-color: var(--color-dark); color: white; display: flex; flex-direction: column; flex-shrink: 0; transition: margin-left 0.3s; position: relative; z-index: 50; overflow: visible; }
+        aside.collapsed { margin-left: -180px; }
+
+        /* Contenedor interno para el scroll del sidebar */
+        .sidebar-inner {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            width: 100%;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            right: -24px; 
+            top: 50%;     
+            transform: translateY(-50%);
+            width: 24px;
+            height: 50px;
+            background-color: var(--color-dark);
+            color: white;
+            border-radius: 0 8px 8px 0; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            box-shadow: 2px 0 6px rgba(0,0,0,0.1);
+            transition: background-color 0.2s;
+        }
+        .sidebar-toggle:hover {
+            background-color: var(--color-accent);
+        }
+
+        aside .brand { padding: 15px; border-bottom: 1px solid var(--color-dark-light); display: flex; align-items: center; gap: 8px; }
+        aside .brand .logo { width: 32px; height: 32px; background-color: var(--color-accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem; }
+        
+        nav { padding: 15px 8px; display: flex; flex-direction: column; gap: 4px; }
+        nav button { background: none; border: none; color: #94a3b8; width: 100%; padding: 8px 10px; text-align: left; cursor: pointer; border-radius: var(--radius); display: flex; align-items: center; gap: 8px; font-size: 0.85rem; transition: all 0.2s; }
+        nav button:hover { background-color: var(--color-dark-light); color: white; }
+        nav button.active { background-color: var(--color-accent); color: white; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3); }
+
+        main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        
+        header { height: 50px; background: var(--color-white); border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0; }
+        header h2 { font-size: 1.1rem; font-weight: 700; color: var(--color-dark); }
+        .search-bar { position: relative; width: 240px; }
+        .search-bar input { width: 100%; padding: 6px 12px 6px 32px; border-radius: 20px; border: none; background: var(--color-bg); outline: none; transition: box-shadow 0.2s; font-size: 0.9rem; }
+        .search-bar input:focus { box-shadow: 0 0 0 2px var(--color-accent); background: white; }
+        .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--color-text-muted); }
+
+        .user-info { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
+        .user-badge { background: var(--color-bg); padding: 4px 10px; border-radius: 20px; font-weight: 600; color: var(--color-text-main); border: 1px solid var(--color-border); }
+        .point-badge { background: var(--color-dark); color: white; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+
+        #app-content { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; }
+
+        /* Vistas y Componentes */
+        .hidden { display: none !important; }
+        .btn { padding: 6px 12px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s; font-size: 0.9rem; }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--color-accent); color: white; }
+        .btn-danger { background: var(--color-danger); color: white; }
+        .btn-dark { background: var(--color-dark); color: white; }
+        .btn-warning { background: var(--color-wholesale); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--color-border); color: var(--color-text-main); }
+        .btn-sm { padding: 3px 6px; font-size: 0.75rem; }
+
+        /* Login View */
+        .login-container { display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; background: var(--color-bg); }
+        .login-box { background: white; padding: 30px; border-radius: 16px; box-shadow: var(--shadow); width: 100%; max-width: 360px; text-align: center; border: 1px solid var(--color-border); }
+        .login-logo { width: 50px; height: 50px; background: var(--color-accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: bold; margin: 0 auto 15px; }
+
+        /* Lock Screen */
+        .lock-screen { position: fixed; inset: 0; background: var(--color-dark); color: white; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+        .lock-icon { width: 60px; height: 60px; color: var(--color-danger); margin-bottom: 15px; }
+        .lock-id-box { background: rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 6px; font-family: monospace; font-size: 1.2rem; letter-spacing: 2px; border: 1px dashed rgba(255,255,255,0.3); margin: 8px 0; user-select: text; color: #4ade80; font-weight: bold; }
+        .lock-info-label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 12px;}
+
+        /* License Status Widget in Sidebar */
+        .license-status { background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; margin-bottom: 8px; font-size: 0.75rem; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        .days-left { font-size: 1rem; font-weight: bold; display: block; margin-top: 2px; }
+        .status-ok { color: #4ade80; }
+        .status-warn { color: #facc15; }
+        .status-danger { color: #f87171; }
+
+        /* POS View */
+        .category-filter { display: flex; gap: 8px; margin-bottom: 4px; overflow-x: auto; padding-bottom: 4px; flex-shrink: 0; }
+        .cat-chip { padding: 5px 10px; border-radius: 16px; background: white; border: 1px solid var(--color-border); font-size: 0.8rem; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+        .cat-chip:hover { background: var(--color-bg); }
+        .cat-chip.active { background: var(--color-dark); color: white; border-color: var(--color-dark); }
+        
+        .cat-chip.wholesale-mode.active { background: var(--color-wholesale); border-color: var(--color-wholesale); }
+
+        .pos-container { display: flex; gap: 8px; height: 100%; overflow: hidden; }
+        
+        .products-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; align-content: start; overflow-y: auto; padding-right: 4px; }
+        
+        .product-card { background: white; border-radius: var(--radius); padding: 8px; border: 1px solid var(--color-border); cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; display: flex; flex-direction: column; height: 125px; position: relative; }
+        .product-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--color-accent); }
+        .wholesale-mode .product-card:hover { border-color: var(--color-wholesale); }
+        
+        .product-icon { width: 28px; height: 28px; background: #fdf2f8; color: var(--color-accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 4px; font-size: 0.8rem; }
+        .wholesale-mode .product-icon { background: #fffbeb; color: var(--color-wholesale); }
+        
+        .product-name-card {
+            font-weight: bold;
+            margin-bottom: 4px;
+            line-height: 1.1;
+            font-size: 0.85rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2; 
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .product-info { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; width: 100%; }
+        .product-price { color: var(--color-accent); font-weight: bold; font-size: 0.9rem; white-space: nowrap; }
+        .wholesale-mode .product-price { color: var(--color-wholesale); }
+        .product-stock { font-size: 0.7rem; color: var(--color-text-muted); }
+        
+        .qty-btn-card { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; background: var(--color-bg); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--color-text-muted); transition: all 0.2s; }
+        .qty-btn-card:hover { background: var(--color-dark); color: white; }
+
+        .cart-sidebar { width: 250px; background: white; border-radius: var(--radius); border: 1px solid var(--color-border); display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow); height: 85%; }
+        .cart-header { padding: 8px 10px; background: #f8fafc; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
+        .wholesale-mode .cart-header { background: #fffbeb; border-bottom-color: #fde68a; color: #b45309; }
+        .cart-items { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 6px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 4px 6px; border-radius: 6px; }
+        .wholesale-mode .cart-item { background: #fffbeb; }
+        .cart-controls { display: flex; align-items: center; gap: 4px; background: white; padding: 1px; border-radius: 4px; border: 1px solid var(--color-border); margin: 0 4px; }
+        .cart-controls button { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; cursor: pointer; color: var(--color-text-main); font-size: 0.85rem; }
+        .cart-controls button:hover { background: #f1f5f9; border-radius: 4px; }
+        .cart-qty-display { font-weight: bold; font-size: 0.8rem; width: 18px; text-align: center; cursor: pointer; border-bottom: 1px dashed #cbd5e1; }
+        .cart-qty-display:hover { background: #f1f5f9; }
+        .cart-footer { padding: 8px 10px; background: var(--color-dark); color: white; margin-top: auto; flex-shrink: 0; }
+
+        /* Tablas */
+        .table-container { background: white; border-radius: var(--radius); border: 1px solid var(--color-border); overflow: hidden; flex: 1; display: flex; flex-direction: column; }
+        .table-scroll { overflow: auto; flex: 1; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px; background: #f8fafc; font-size: 0.7rem; text-transform: uppercase; color: var(--color-text-muted); font-weight: 600; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--color-border); }
+        td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
+        tr:hover { background: #f8fafc; }
+        
+        .row-danger td { background-color: #fef2f2; color: #b91c1c; }
+        .row-danger:hover td { background-color: #fee2e2; }
+        .row-danger td .btn-outline { border-color: #b91c1c; color: #b91c1c; }
+
+        /* Modales */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal { background: white; width: 100%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); animation: zoomIn 0.2s ease-out; display: flex; flex-direction: column; max-height: 90vh; }
+        .modal-header { background: var(--color-dark); color: white; padding: 16px; text-align: center; flex-shrink: 0; }
+        .modal-body { padding: 20px; overflow-y: auto; }
+        @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .input-group { margin-bottom: 12px; text-align: left; }
+        .input-group label { display: block; font-size: 0.75rem; font-weight: bold; color: var(--color-text-muted); margin-bottom: 4px; }
+        .input-field { width: 100%; padding: 8px 10px; border: 2px solid var(--color-border); border-radius: 6px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; background: white; }
+        .input-field:focus { border-color: var(--color-accent); }
+        select.input-field { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.8rem center; background-size: 1em; }
+        
+        .change-box { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 10px; margin-bottom: 16px; }
+        .change-box.negative { background: #fef2f2; border-color: #fecaca; }
+        .bill-tag { display: inline-flex; align-items: center; gap: 4px; background: white; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: #166534; margin: 2px; font-weight: bold; }
+
+        .pay-tabs { display: flex; background: var(--color-bg); padding: 4px; border-radius: 8px; margin-bottom: 16px; }
+        .pay-tab { flex: 1; padding: 8px; text-align: center; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--color-text-muted); border: 2px solid transparent; }
+        .pay-tab.active { background: white; color: var(--color-dark); shadow: var(--shadow); border-color: var(--color-accent); }
+        .pay-tab.wholesale.active { border-color: var(--color-wholesale); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 16px; border-radius: var(--radius); border: 1px solid var(--color-border); }
+        .stat-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--color-dark); }
+        .stat-label { color: var(--color-text-muted); font-weight: 500; font-size: 0.85rem; }
+
+        .arqueo-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+        .arqueo-result { font-weight: bold; font-size: 1rem; padding: 8px; border-radius: 6px; margin-top: 8px; display: flex; justify-content: space-between; }
+        .arqueo-ok { background: #dcfce7; color: #166534; }
+        .arqueo-warn { background: #fef2f2; color: #b91c1c; }
+        .arqueo-surplus { background: #dbeafe; color: #1e40af; }
+
+        .badge { padding: 3px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; }
+        .badge-sale { background: #ecfdf5; color: #059669; }
+        .badge-wholesale { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+        .badge-entry { background: #dbeafe; color: #1e40af; }
+        .badge-loss { background: #fef2f2; color: #b91c1c; }
+        .badge-transfer { background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; }
+        .badge-admin { background: #475569; color: white; }
+        .badge-worker { background: #e2e8f0; color: #475569; }
+        .badge-point { background: #0f172a; color: white; border-radius: 12px; padding: 2px 8px; font-size: 0.7rem; }
+        .badge-withdrawal { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; } 
+        .badge-expense { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+        .counter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+        .counter-card { background: white; border: 1px solid var(--color-border); border-radius: var(--radius); padding: 12px; text-align: center; transition: all 0.2s; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        .counter-card:focus-within { border-color: var(--color-accent); box-shadow: var(--shadow); transform: translateY(-4px); }
+        .counter-card.active-count { border-color: var(--color-success); background-color: #f0fdf4; }
+        .counter-card.active-count .denom-label { color: #166534; }
+        .denom-label { font-size: 1.3rem; font-weight: 800; color: var(--color-dark); margin-bottom: 6px; letter-spacing: -1px; }
+        .subtotal-display { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 6px; font-weight: 600; min-height: 1.2em; }
+        .active-count .subtotal-display { color: #15803d; }
+
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+
+    </style>
+</head>
+<body>
+
+    <aside id="sidebar" class="collapsed">
+        <button onclick="toggleSidebar()" class="sidebar-toggle" title="Abrir/Cerrar Menú">
+            <svg class="icon" style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+
+        <div class="sidebar-inner">
+            <div class="brand">
+                <div class="logo">M</div>
+                <span>Micuadre</span>
+            </div>
+            <nav>
+                <button class="nav-btn active" data-tab="pos" onclick="switchTab('pos')">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                    Caja (Ventas)
+                </button>
+                
+                <!-- NUEVO BOTÓN X MAYOR (MAYORISTA) -->
+                <button id="nav-wholesale" class="nav-btn hidden" data-tab="wholesale" onclick="switchTab('wholesale')">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                    x Mayor
+                </button>
+
+                <button class="nav-btn" data-tab="inventory" onclick="switchTab('inventory')">
+                    <svg class="icon" viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    Inventario
+                </button>
+                <button class="nav-btn" data-tab="transfers" onclick="switchTab('transfers')">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+                    Transferencias
+                </button>
+                <button class="nav-btn" data-tab="expenses" onclick="switchTab('expenses')">
+                    <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    Gastos (Pérdidas)
+                </button>
+                <button class="nav-btn" data-tab="withdrawals" onclick="switchTab('withdrawals')">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                    Extracciones
+                </button>
+                <button class="nav-btn" data-tab="counter" onclick="switchTab('counter')">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    Contador
+                </button>
+                <button class="nav-btn" data-tab="history" onclick="switchTab('history')">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Historial
+                </button>
+                
+                <button class="nav-btn" data-tab="charts" onclick="switchTab('charts')">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M21 21H4.6a.6.6 0 0 1-.6-.6V3"/><rect x="8" y="10" width="4" height="11" rx="1"/><rect x="16" y="6" width="4" height="15" rx="1"/></svg>
+                    Gráficos
+                </button>
+
+                <button class="nav-btn" data-tab="dashboard" onclick="switchTab('dashboard')">
+                    <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Resumen
+                </button>
+                
+                <!-- NUEVO BOTÓN NÓMINA -->
+                <button id="nav-payroll" class="nav-btn hidden" data-tab="payroll" onclick="switchTab('payroll')">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    Nómina (Pagos)
+                </button>
+
+                <button id="nav-reports" class="nav-btn hidden" data-tab="shifts" onclick="switchTab('shifts')">
+                   <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    Reportes (Cuadres)
+                </button>
+
+                <button id="nav-users" class="nav-btn hidden" data-tab="users" onclick="switchTab('users')">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    Usuarios
+                </button>
+
+                <button id="nav-settings" class="nav-btn hidden" data-tab="settings" onclick="switchTab('settings')">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    Configuración
+                </button>
+            </nav>
+            <div style="padding: 10px; font-size: 0.8rem; text-align: center; margin-top: 20px;">
+                <div id="license-widget" class="license-status" style="margin-bottom: 5px;">
+                    <div>Licencia</div>
+                    <span id="days-left-display" class="days-left">...</span>
+                </div>
+                <div style="margin-bottom: 5px; opacity:0.7;">Offline POS v3.7</div>
+                <button class="btn btn-outline btn-sm" onclick="logout()" style="width:100%; justify-content:center; border-color: #334155; color: #94a3b8;">Cerrar Sesión</button>
+            </div>
+        </div>
+    </aside>
+
+    <main>
+        <header id="main-header" class="hidden">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button onclick="toggleSidebar()" class="btn btn-outline" style="border:none; padding:4px; color:var(--color-dark); display: none;">
+                    <svg class="icon" style="width:24px; height:24px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <h2 id="page-title" style="margin:0;">Punto de Venta</h2>
+            </div>
+            
+            <div id="search-container" class="search-bar">
+                <svg class="icon search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="search-input" placeholder="Buscar producto..." onkeyup="handleSearch(this.value)">
+            </div>
+
+            <div class="user-info">
+                <div id="point-display" class="point-badge">...</div>
+                <div id="user-display" class="user-badge">Invitado</div>
+            </div>
+        </header>
+
+        <div id="app-content">
+            <!-- Vistas -->
+        </div>
+    </main>
+
+    <div id="modal-container" class="modal-overlay hidden"></div>
+    <input type="file" id="import-file" style="display:none" onchange="processImport(this)">
+
+    <script>
+        const DENOMINACIONES_CUP = [1000, 500, 200, 100, 50, 20, 10, 5, 3, 1];
+        const DEFAULT_CATEGORIES = ['Confituras', 'Bebidas', 'Cárnicos', 'Víveres', 'Aseo', 'Cigarros', 'Otros'];
+        // Roles definidos en el sistema
+        const ROLES = {
+            ADMIN: 'admin',
+            WORKER: 'worker', 
+            STEVEDORE: 'estibador',
+            ACCOUNTANT: 'economico',
+            GUARD: 'custodio',
+            DISTRIBUTOR: 'distribuidor'
+        };
+
+        let state = {
+            settings: { 
+                pointName: 'Sede Principal',
+                enableCheckoutUI: true, 
+                wholesaleEnabled: false, 
+                sortInventoryBy: 'added',
+                salary: { base: 0, bonusThreshold: 1000, bonusAmount: 0 } 
+            }, 
+            users: [],              
+            currentUser: null, 
+            inventory: [],
+            categories: [], 
+            cart: [],
+            wholesaleCart: [],
+            history: [],
+            shifts: [], 
+            payroll: [], 
+            tempArqueo: { withdrawal: '', realCash: '' },
+            searchTerm: '',
+            selectedCategory: 'Todas',
+            paymentMethod: 'cash',
+            filterPoint: 'All', 
+            billCounts: {}, 
+            license: { expirationDate: null, installId: null, lastRequestCode: null }
+        };
+
+        let activePOSMode = 'retail';
+
+        // Helper para mostrar de forma amigable el formato del salario
+        function formatSalaryConfig(config) {
+            if (config.type === 'fixed') return `$${config.base} Fijo`;
+            if (config.type === 'percent') return `${config.percent}% de Ventas`;
+            if (config.type === 'mixed') return `$${config.base} + ${config.percent}% de Ventas`;
+            if (config.type === 'fixed_action') return `$${config.base} + $${config.actionRate} x ${config.actionName}`;
+            return 'No definido';
+        }
+
+        function init() {
+            const savedInv = localStorage.getItem('primos_inventory');
+            const savedHist = localStorage.getItem('primos_history');
+            const savedShifts = localStorage.getItem('primos_shifts');
+            const savedUsers = localStorage.getItem('primos_users');
+            const savedSettings = localStorage.getItem('primos_settings');
+            const savedLicense = localStorage.getItem('primos_license');
+            const savedCategories = localStorage.getItem('primos_categories');
+            const savedTempArqueo = localStorage.getItem('primos_temp_arqueo');
+            const savedPayroll = localStorage.getItem('primos_payroll'); 
+            
+            if (savedInv) state.inventory = JSON.parse(savedInv);
+            if (savedHist) state.history = JSON.parse(savedHist);
+            if (savedShifts) state.shifts = JSON.parse(savedShifts);
+            if (savedUsers) state.users = JSON.parse(savedUsers);
+            if (savedSettings) state.settings = { ...state.settings, ...JSON.parse(savedSettings) };
+            if (savedPayroll) state.payroll = JSON.parse(savedPayroll);
+            
+            if (savedCategories) {
+                state.categories = JSON.parse(savedCategories);
+            } else {
+                state.categories = [...DEFAULT_CATEGORIES];
+            }
+
+            if (savedTempArqueo) {
+                state.tempArqueo = JSON.parse(savedTempArqueo);
+            }
+            
+            if (state.settings.enableCheckoutUI === undefined) {
+                state.settings.enableCheckoutUI = true;
+            }
+
+            if (state.settings.sortInventoryBy === undefined) {
+                state.settings.sortInventoryBy = 'stock_asc';
+            }
+            
+            // Migración de Usuarios
+            state.users = state.users.map(u => ({
+                ...u,
+                role: u.role || 'worker',
+                canLogin: u.canLogin !== undefined ? u.canLogin : true,
+                salaryConfig: { 
+                    type: u.salaryConfig?.type || 'mixed', 
+                    base: u.salaryConfig?.base || 0, 
+                    percent: u.salaryConfig?.percent || 0,
+                    frequency: u.salaryConfig?.frequency || 'daily',
+                    actionRate: u.salaryConfig?.actionRate || 0, // NUEVO: Monto por accion
+                    actionName: u.salaryConfig?.actionName || 'acciones' // NUEVO: Nombre accion (ej: cajas)
+                }
+            }));
+
+            if (savedLicense) {
+                state.license = JSON.parse(savedLicense);
+            } else {
+                state.license.installId = generateInstallId();
+                const validDate = new Date();
+                validDate.setDate(validDate.getDate() + 30);
+                state.license.expirationDate = validDate.toISOString();
+                saveLicense();
+            }
+            
+            if (state.license.expirationDate && new Date(state.license.expirationDate) < new Date()) {
+                 const validDate = new Date();
+                 validDate.setDate(validDate.getDate() + 30);
+                 state.license.expirationDate = validDate.toISOString();
+                 saveLicense();
+            }
+
+            if (state.users.length === 0) {
+                state.users.push({ id: 'admin', name: 'Admin', password: 'admin', role: 'admin', canLogin: true });
+                saveData();
+            }
+
+            state.inventory = state.inventory.map(p => ({
+                ...p,
+                category: p.category || 'Otros',
+                cost: p.cost !== undefined ? p.cost : (p.price * 0.7),
+                stock: (p.stock === null || p.stock === undefined || isNaN(p.stock)) ? 0 : Number(p.stock),
+                unitsPerBox: p.unitsPerBox || (p.category === 'x Mayor' ? 1 : null)
+            }));
+            
+            if (checkLicenseStatus()) {
+                renderLogin();
+                updateLicenseDisplay();
+            } else {
+                renderLockScreen();
+            }
+            
+            updatePointDisplay();
+            updateSidebarVisibility();
+        }
+
+        function generateInstallId() {
+            return Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + 
+                   Math.random().toString(36).substring(2, 6).toUpperCase();
+        }
+
+        function saveLicense() {
+            localStorage.setItem('primos_license', JSON.stringify(state.license));
+        }
+
+        function checkLicenseStatus() {
+            if (!state.license.expirationDate) return false;
+            return new Date() < new Date(state.license.expirationDate);
+        }
+
+        function updateLicenseDisplay() {
+            const expDate = new Date(state.license.expirationDate);
+            const now = new Date();
+            const diffTime = expDate - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            
+            const display = document.getElementById('days-left-display');
+            if (!display) return;
+
+            if (diffDays > 10) {
+                display.className = 'days-left status-ok';
+                display.innerText = `${diffDays} Días`;
+            } else if (diffDays > 3) {
+                display.className = 'days-left status-warn';
+                display.innerText = `${diffDays} Días`;
+            } else {
+                display.className = 'days-left status-danger';
+                display.innerText = `${diffDays} Días`;
+            }
+        }
+
+        function renderLockScreen() {
+            if (!state.license.lastRequestCode) {
+                state.license.lastRequestCode = Math.floor(1000 + Math.random() * 9000);
+                saveLicense();
+            }
+
+            const html = `
+                <div class="lock-screen">
+                    <svg class="icon lock-icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <h2 style="font-size:2rem; margin-bottom:10px;">Licencia Vencida</h2>
+                    <p style="font-size:1rem; opacity:0.8; max-width:400px; margin-bottom:20px;">
+                        Su periodo de 30 días ha finalizado. 
+                        Para renovar su suscripción, contacte al administrador al: <br>
+                        <strong style="font-size:1.2rem; color:#4ade80;">+53 55728794</strong>
+                    </p>
+                    <div class="lock-info-label">ID DE INSTALACIÓN</div>
+                    <div class="lock-id-box">${state.license.installId}</div>
+                    <div class="lock-info-label">CÓDIGO DE SOLICITUD (Mensual)</div>
+                    <div class="lock-id-box" style="color:#facc15; border-color:#facc15;">${state.license.lastRequestCode}</div>
+                    <p style="font-size:0.85rem; color:#64748b; margin-bottom:20px;">Envíe ambos códigos para recibir su clave de renovación.</p>
+                    <div style="display:flex; gap:10px; max-width:400px; width:100%;">
+                        <input id="license-key-input" type="text" class="input-field" placeholder="Ingrese Clave de Renovación" style="text-align:center;">
+                        <button onclick="activateLicense()" class="btn btn-primary">Renovar</button>
+                    </div>
+                </div>
+            `;
+            document.body.innerHTML = html;
+        }
+
+        function activateLicense() {
+            const key = document.getElementById('license-key-input').value.trim();
+            const secret = "HAROLD_SECURE";
+            const dataString = state.license.installId + state.license.lastRequestCode + secret;
+            const validKey = btoa(dataString).split('').reverse().join('');
+
+            if (key === validKey) {
+                const newExpDate = new Date();
+                newExpDate.setDate(newExpDate.getDate() + 30);
+                state.license.expirationDate = newExpDate.toISOString();
+                state.license.lastRequestCode = null;
+                saveLicense();
+                alert("¡Renovación Exitosa! Sistema activo por 30 días más.");
+                location.reload(); 
+            } else {
+                alert("Clave inválida. Verifique los códigos.");
+            }
+        }
+
+        const modalContainer = document.getElementById('modal-container');
+        let currentPayMethod = 'cash';
+        let currentCheckoutMode = 'retail';
+
+        function closeModal() {
+            modalContainer.classList.add('hidden');
+            modalContainer.innerHTML = '';
+        }
+
+        function openCheckoutModal(total, mode = 'retail') {
+            currentPayMethod = 'cash'; 
+            currentCheckoutMode = mode;
+
+            if (state.settings.enableCheckoutUI === false) {
+                confirmSale(total);
+                return;
+            }
+            renderCheckoutContent(total);
+            modalContainer.classList.remove('hidden');
+            setTimeout(() => document.getElementById('pay-input')?.focus(), 100);
+        }
+
+        function setPayMethod(method, total) {
+            currentPayMethod = method;
+            renderCheckoutContent(total);
+        }
+
+        function renderCheckoutContent(total) {
+            const isWholesale = currentCheckoutMode === 'wholesale';
+
+            modalContainer.innerHTML = `
+                <div class="modal">
+                    <div class="modal-header" style="${isWholesale ? 'background-color: var(--color-wholesale);' : ''}">
+                        <h3>Cobrar ${isWholesale ? '(x Mayor)' : ''}</h3>
+                        <div style="font-size:2rem; font-weight:bold;">${formatCurrency(total)}</div>
+                    </div>
+                    <div class="modal-body">
+                        <div class="pay-tabs">
+                            <div class="pay-tab ${isWholesale ? 'wholesale' : ''} ${currentPayMethod === 'cash' ? 'active' : ''}" onclick="setPayMethod('cash', ${total})">💵 Efectivo</div>
+                            <div class="pay-tab ${isWholesale ? 'wholesale' : ''} ${currentPayMethod === 'transfer' ? 'active' : ''}" onclick="setPayMethod('transfer', ${total})">📱 Transfermóvil</div>
+                        </div>
+                        ${currentPayMethod === 'cash' ? `
+                            <div class="input-group">
+                                <label>Efectivo Recibido (CUP)</label>
+                                <input type="number" id="pay-input" class="input-field" placeholder="0.00" oninput="calcChange(this.value, ${total})">
+                            </div>
+                            <div id="change-display" class="change-box negative">
+                                <div style="display:flex; justify-content:space-between;">
+                                    <strong>Faltante:</strong>
+                                    <strong>${formatCurrency(total)}</strong>
+                                </div>
+                            </div>
+                        ` : `
+                            <div style="padding: 20px; text-align:center; background:#f0f9ff; border-radius:12px; border:1px solid #bae6fd; margin-bottom:20px;">
+                                <p style="color:#0369a1; font-weight:bold;">Pago por Transferencia</p>
+                                <p style="font-size:0.9rem; color:#64748b;">Verifique que la transferencia de ${formatCurrency(total)} haya llegado correctamente.</p>
+                            </div>
+                        `}
+                        <div style="display:flex; gap:10px;">
+                            <button onclick="closeModal()" class="btn btn-outline" style="flex:1; justify-content:center;">Cancelar</button>
+                            <button id="confirm-pay-btn" onclick="confirmSale(${total})" class="btn ${isWholesale ? 'btn-warning' : 'btn-primary'}" style="flex:1; justify-content:center;" ${currentPayMethod === 'cash' ? 'disabled' : ''}>Confirmar Venta</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function calcChange(paidStr, total) {
+            const paid = parseFloat(paidStr) || 0;
+            const diff = paid - total;
+            const display = document.getElementById('change-display');
+            const btn = document.getElementById('confirm-pay-btn');
+
+            if (diff >= 0) {
+                display.className = 'change-box';
+                display.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="color:var(--color-success); font-size:1.1rem;">Vuelto a entregar:</strong>
+                        <strong style="color:var(--color-success); font-size:1.8rem;">${formatCurrency(diff)}</strong>
+                    </div>
+                `;
+                btn.disabled = false;
+            } else {
+                display.className = 'change-box negative';
+                display.innerHTML = `
+                      <div style="display:flex; justify-content:space-between;">
+                        <strong style="color:var(--color-danger);">Faltante:</strong>
+                        <strong style="color:var(--color-danger);">${formatCurrency(Math.abs(diff))}</strong>
+                    </div>
+                `;
+                btn.disabled = true;
+            }
+        }
+
+        function confirmSale(total) {
+            let paid = total;
+            let change = 0;
+
+            if (currentPayMethod === 'cash') {
+                const inputEl = document.getElementById('pay-input');
+                if (inputEl) {
+                    paid = parseFloat(inputEl.value) || total;
+                } else {
+                    paid = total; 
+                }
+                change = paid - total;
+            }
+
+            const activeCart = currentCheckoutMode === 'wholesale' ? state.wholesaleCart : state.cart;
+            const saleTypeRecord = currentCheckoutMode === 'wholesale' ? 'sale_wholesale' : 'sale';
+
+            let saleCost = 0;
+            activeCart.forEach(item => {
+                saleCost += (item.cost || 0) * item.qty;
+            });
+
+            const sale = {
+                id: generateId(),
+                type: saleTypeRecord,
+                date: new Date().toISOString(),
+                items: [...activeCart],
+                total: total,
+                totalCost: saleCost,
+                profit: total - saleCost,
+                paid: paid,
+                change: change,
+                method: currentPayMethod,
+                user: state.currentUser.name,
+                point: state.settings.pointName
+            };
+
+            state.inventory = state.inventory.map(prod => {
+                const inCart = activeCart.find(c => c.id === prod.id);
+                if (inCart) return { ...prod, stock: prod.stock - inCart.qty };
+                return prod;
+            });
+
+            state.history.unshift(sale);
+            
+            if (currentCheckoutMode === 'wholesale') {
+                state.wholesaleCart = [];
+            } else {
+                state.cart = [];
+            }
+
+            saveData();
+            closeModal();
+            renderPOS();
+        }
+
+        function updatePointDisplay() {
+            const display = document.getElementById('point-display');
+            if(display) display.innerText = state.settings.pointName;
+        }
+
+        function updateSidebarVisibility() {
+            const navWholesale = document.getElementById('nav-wholesale');
+            if (navWholesale) {
+                if (state.settings.wholesaleEnabled) {
+                    navWholesale.classList.remove('hidden');
+                } else {
+                    navWholesale.classList.add('hidden');
+                }
+            }
+        }
+
+        function login(username, password) {
+            const user = state.users.find(u => u.name === username && u.password === password && u.canLogin !== false);
+            if (user) {
+                state.currentUser = user;
+                document.getElementById('sidebar').classList.remove('collapsed');
+                document.getElementById('main-header').classList.remove('hidden');
+                document.getElementById('user-display').innerText = `${user.name} (${user.role === 'admin' ? 'A' : 'T'})`;
+                
+                if (user.role === 'admin') {
+                    document.getElementById('nav-reports').classList.remove('hidden');
+                    document.getElementById('nav-users').classList.remove('hidden');
+                    document.getElementById('nav-settings').classList.remove('hidden');
+                    document.getElementById('nav-payroll').classList.remove('hidden');
+                } else {
+                    document.getElementById('nav-reports').classList.add('hidden');
+                    document.getElementById('nav-users').classList.add('hidden');
+                    document.getElementById('nav-settings').classList.add('hidden');
+                    document.getElementById('nav-payroll').classList.add('hidden');
+                }
+
+                updateSidebarVisibility();
+                switchTab('pos');
+            } else {
+                alert("Usuario incorrecto o sin acceso al sistema");
+            }
+        }
+
+        function logout() {
+            state.currentUser = null;
+            state.cart = []; 
+            state.wholesaleCart = [];
+            state.billCounts = {}; 
+            document.getElementById('sidebar').classList.add('collapsed');
+            document.getElementById('main-header').classList.add('hidden');
+            renderLogin();
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        function saveData() {
+            localStorage.setItem('primos_inventory', JSON.stringify(state.inventory));
+            localStorage.setItem('primos_history', JSON.stringify(state.history));
+            localStorage.setItem('primos_shifts', JSON.stringify(state.shifts || []));
+            localStorage.setItem('primos_users', JSON.stringify(state.users));
+            localStorage.setItem('primos_settings', JSON.stringify(state.settings));
+            localStorage.setItem('primos_categories', JSON.stringify(state.categories)); 
+            localStorage.setItem('primos_temp_arqueo', JSON.stringify(state.tempArqueo));
+            localStorage.setItem('primos_payroll', JSON.stringify(state.payroll));
+            updatePointDisplay();
+        }
+
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('es-CU', { style: 'currency', currency: 'CUP' }).format(amount);
+        };
+
+        const generateId = () => Math.random().toString(36).substr(2, 9);
+
+        function switchTab(tabName) {
+            if (!state.currentUser) return;
+
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            const btn = document.querySelector(`button[data-tab="${tabName}"]`);
+            if(btn) btn.classList.add('active');
+            
+            const titles = { 
+                'pos': 'Punto de Venta', 
+                'wholesale': 'Ventas x Mayor (Mayorista)',
+                'inventory': 'Gestión de Inventario', 
+                'withdrawals': 'Gestión de Extracciones', 
+                'transfers': 'Registro de Transferencias',
+                'expenses': 'Control de Gastos y Pérdidas',
+                'history': 'Historial Completo', 
+                'dashboard': 'Resumen y Cierre',
+                'shifts': 'Reportes de Turnos Cerrados',
+                'users': 'Gestión de Usuarios',
+                'settings': 'Configuración del Punto',
+                'counter': 'Contador de Efectivo',
+                'charts': 'Gráficos y Estadísticas',
+                'payroll': 'Nómina y Salarios'
+            };
+            document.getElementById('page-title').innerText = titles[tabName];
+            
+            const searchContainer = document.getElementById('search-container');
+            if (tabName === 'pos' || tabName === 'wholesale') searchContainer.style.display = 'block';
+            else searchContainer.style.display = 'none';
+
+            if (tabName === 'pos') { activePOSMode = 'retail'; renderPOS(); }
+            else if (tabName === 'wholesale') { activePOSMode = 'wholesale'; renderPOS(); }
+            else if (tabName === 'inventory') renderInventory();
+            else if (tabName === 'withdrawals') renderWithdrawals(); 
+            else if (tabName === 'transfers') renderTransfers();
+            else if (tabName === 'expenses') renderExpenses();
+            else if (tabName === 'history') renderHistory();
+            else if (tabName === 'dashboard') renderDashboard();
+            else if (tabName === 'shifts') renderReports();
+            else if (tabName === 'users') renderUsers();
+            else if (tabName === 'settings') renderSettings();
+            else if (tabName === 'counter') renderCounter();
+            else if (tabName === 'charts') renderCharts();
+            else if (tabName === 'payroll') renderPayroll();
+        }
+
+        function renderLogin() {
+            const html = `
+                <div class="login-container">
+                    <div class="login-box">
+                        <div class="login-logo">M</div>
+                        <h2 style="margin-bottom:10px; color:var(--color-dark);">Micuadre</h2>
+                        <h4 style="margin-bottom:20px; color:var(--color-text-muted);">Punto: ${state.settings.pointName}</h4>
+                        <div class="input-group">
+                            <label>Usuario</label>
+                            <select id="login-user" class="input-field">
+                                <option value="" disabled selected>Seleccione usuario...</option>
+                                ${state.users.filter(u => u.canLogin).map(u => `<option value="${u.name}">${u.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Contraseña</label>
+                            <input type="password" id="login-pass" class="input-field">
+                        </div>
+                        <button onclick="login(document.getElementById('login-user').value, document.getElementById('login-pass').value)" 
+                            class="btn btn-primary" style="width:100%; justify-content:center; padding:12px; margin-top:10px;">
+                            Entrar
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        // --- MÓDULO NÓMINA ---
+        function renderPayroll() {
+            if (state.currentUser.role !== 'admin') return switchTab('pos');
+
+            const payrollSummary = {};
+            state.users.forEach(u => {
+                if (u.id === 'admin') return; 
+                const pending = state.payroll.filter(p => p.employeeId === u.id && p.status === 'pending');
+                const totalPending = pending.reduce((acc, p) => acc + p.amount, 0);
+                payrollSummary[u.id] = { user: u, total: totalPending, items: pending };
+            });
+
+            const userList = Object.values(payrollSummary);
+
+            let html = `
+                <div style="max-width: 900px; margin: 0 auto;">
+                    <div style="display:flex; gap:15px; margin-bottom:20px;">
+                        <div class="stat-card" style="flex:1; background:#ecfdf5; border-color:#6ee7b7;">
+                            <h3 style="color:#065f46;">Total Pendiente Pago</h3>
+                            <div style="font-size:2rem; font-weight:bold; color:#059669;">
+                                ${formatCurrency(userList.reduce((acc, u) => acc + u.total, 0))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-bottom:15px;">Listado de Trabajadores</h3>
+                    <div class="counter-grid">
+                        ${userList.map(item => `
+                            <div class="counter-card" style="align-items:start; text-align:left;">
+                                <div style="display:flex; justify-content:space-between; width:100%;">
+                                    <h4 style="margin:0; font-weight:bold;">${item.user.name}</h4>
+                                    <span class="badge badge-admin" style="background:#cbd5e1; color:#334155;">${item.user.role}</span>
+                                </div>
+                                <div style="font-size:0.8rem; color:#64748b; margin-top:5px;">
+                                    Pago: 
+                                    ${formatSalaryConfig(item.user.salaryConfig)}
+                                    (${item.user.salaryConfig.frequency === 'daily' ? 'Diario' : (item.user.salaryConfig.frequency === 'weekly' ? 'Semanal' : 'Mensual')})
+                                </div>
+                                <div style="margin-top:10px; width:100%;">
+                                    <div style="font-size:0.8rem; color:#64748b;">Acumulado a Pagar:</div>
+                                    <div style="font-size:1.5rem; font-weight:bold; color:${item.total > 0 ? '#ef4444' : '#10b981'};">
+                                        ${formatCurrency(item.total)}
+                                    </div>
+                                </div>
+                                <div style="margin-top:15px; display:flex; gap:5px; width:100%;">
+                                    ${!item.user.canLogin ? 
+                                        `<button onclick="addManualShift('${item.user.id}')" class="btn btn-sm btn-outline" style="flex:1;">+ Jornada</button>` 
+                                        : ''
+                                    }
+                                    <button onclick="payEmployee('${item.user.id}')" class="btn btn-sm btn-primary" style="flex:1;" ${item.total <= 0 ? 'disabled' : ''}>Pagar</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function addManualShift(userId) {
+            const user = state.users.find(u => u.id === userId);
+            if (!user) return;
+
+            let amount = user.salaryConfig.base || 0;
+            
+            if (user.salaryConfig.type === 'percent' || user.salaryConfig.type === 'mixed') {
+                const salesStr = prompt(`Ingrese ventas totales para calcular el ${user.salaryConfig.percent}% de comisión:`, "0");
+                if (salesStr === null) return;
+                const salesNum = parseFloat(salesStr) || 0;
+                amount += (salesNum * user.salaryConfig.percent / 100);
+            } else if (user.salaryConfig.type === 'fixed_action') {
+                const qtyStr = prompt(`Ingrese cantidad de '${user.salaryConfig.actionName}' realizadas:`, "0");
+                if (qtyStr === null) return;
+                const qty = parseFloat(qtyStr) || 0;
+                amount += (qty * user.salaryConfig.actionRate);
+            }
+
+            if (amount <= 0 && user.salaryConfig.type !== 'fixed_action') {
+                const manual = prompt("No hay salario base ni comisión. Ingrese monto a pagar manualmente por la jornada:", "0");
+                if (manual === null) return;
+                amount = parseFloat(manual);
+            }
+
+            if (confirm(`¿Registrar jornada para ${user.name} por valor de ${formatCurrency(amount)}?`)) {
+                state.payroll.push({
+                    id: generateId(),
+                    employeeId: user.id,
+                    amount: amount,
+                    date: new Date().toISOString(),
+                    reason: 'Jornada Manual',
+                    status: 'pending'
+                });
+                saveData();
+                renderPayroll();
+            }
+        }
+
+        function payEmployee(userId) {
+            const user = state.users.find(u => u.id === userId);
+            const pendingItems = state.payroll.filter(p => p.employeeId === userId && p.status === 'pending');
+            const total = pendingItems.reduce((acc, p) => acc + p.amount, 0);
+
+            if (confirm(`¿Confirmar pago de ${formatCurrency(total)} a ${user.name}?`)) {
+                state.payroll = state.payroll.map(p => {
+                    if (p.employeeId === userId && p.status === 'pending') {
+                        return { ...p, status: 'paid', paidDate: new Date().toISOString() };
+                    }
+                    return p;
+                });
+                if(confirm("¿Desea registrar este pago como un GASTO en la caja actual?")) {
+                    state.history.unshift({
+                        id: generateId(),
+                        type: 'expense',
+                        date: new Date().toISOString(),
+                        productName: `Pago Nómina: ${user.name}`,
+                        amount: 1,
+                        total: total,
+                        user: state.currentUser.name,
+                        point: state.settings.pointName
+                    });
+                }
+                saveData();
+                renderPayroll();
+            }
+        }
+
+        // --- FIN MODULO NOMINA ---
+
+        function renderTransfers() {
+            const transferSales = state.history.filter(h => 
+                (h.type === 'sale' || h.type === 'sale_wholesale') && 
+                h.method === 'transfer' &&
+                h.user === state.currentUser.name && 
+                h.point === state.settings.pointName
+            );
+
+            const totalTransfers = transferSales.reduce((sum, s) => sum + s.total, 0);
+
+            let html = `
+                <div style="max-width: 900px; margin: 0 auto;">
+                    <div class="stat-card" style="margin-bottom: 20px; background:#f0f9ff; border:1px solid #bae6fd;">
+                        <h3 style="margin-bottom:5px; color:#0369a1;">Transferencias Recibidas</h3>
+                        <p style="font-size:0.85rem; color:#64748b; margin-bottom:15px;">Listado de ventas cobradas por transferencia en este turno.</p>
+                        <div style="font-size:2rem; font-weight:bold; color:#0284c7;">${formatCurrency(totalTransfers)}</div>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Detalle Venta</th>
+                                        <th style="text-align:right;">Monto</th>
+                                        <th style="text-align:right;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${transferSales.length > 0 ? transferSales.map(s => {
+                                        const detail = s.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+                                        const badge = s.type === 'sale_wholesale' ? ' <span class="badge badge-wholesale">x Mayor</span>' : '';
+                                        return `
+                                        <tr>
+                                            <td style="color:#64748b; font-size:0.85rem;">${new Date(s.date).toLocaleTimeString()}</td>
+                                            <td style="font-size:0.9rem;">${detail} ${badge}</td>
+                                            <td style="text-align:right; font-weight:bold; color:#0369a1;">${formatCurrency(s.total)}</td>
+                                            <td style="text-align:right;">
+                                                <button onclick="revertSale('${s.id}')" class="btn btn-sm btn-outline" style="color:var(--color-danger); border-color:var(--color-danger);">Anular</button>
+                                            </td>
+                                        </tr>
+                                        `;
+                                    }).join('') : '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">No hay transferencias registradas en este turno.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function renderExpenses() {
+            const expenses = state.history.filter(h => 
+                h.type === 'expense' && 
+                h.user === state.currentUser.name && 
+                h.point === state.settings.pointName
+            );
+
+            const totalExpenses = expenses.reduce((sum, e) => sum + e.total, 0);
+
+            let html = `
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <div class="stat-card" style="margin-bottom: 20px; border-left: 5px solid #ef4444;">
+                        <h3 style="margin-bottom:15px; color:#991b1b;">Registrar Gasto / Pérdida</h3>
+                        <p style="font-size:0.85rem; color:#64748b; margin-bottom:15px;">
+                            Registre aquí pagos de servicios, compra de insumos, o mermas monetarias.
+                            <br><strong>Nota:</strong> Estos montos se descontarán del efectivo en caja y de la ganancia neta.
+                        </p>
+                        
+                        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:15px; align-items:end;">
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Monto del Gasto</label>
+                                <input type="number" id="exp-amount" class="input-field" placeholder="0.00">
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Descripción del Gasto</label>
+                                <input type="text" id="exp-reason" class="input-field" placeholder="Ej: Electricidad, Pago Proveedor X...">
+                            </div>
+                        </div>
+                        <button onclick="addExpense()" class="btn btn-danger" style="width:100%; margin-top:15px; justify-content:center; background:#ef4444;">
+                            Registrar Gasto
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <div style="padding:15px; border-bottom:1px solid #e2e8f0; background:#fef2f2; display:flex; justify-content:space-between; align-items:center;">
+                            <h4 style="margin:0; color:#991b1b;">Gastos del Turno Actual</h4>
+                            <span style="font-weight:bold; font-size:1.1rem; color:#ef4444;">Total: ${formatCurrency(totalExpenses)}</span>
+                        </div>
+                        <div class="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Descripción</th>
+                                        <th style="text-align:right;">Monto</th>
+                                        <th style="text-align:right;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${expenses.length > 0 ? expenses.map(e => `
+                                        <tr>
+                                            <td style="color:#64748b; font-size:0.85rem;">${new Date(e.date).toLocaleTimeString()}</td>
+                                            <td>${e.productName || 'Gasto General'}</td>
+                                            <td style="text-align:right; font-weight:bold; color:#ef4444;">${formatCurrency(e.total)}</td>
+                                            <td style="text-align:right;">
+                                                <button onclick="deleteWithdrawal('${e.id}')" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#ef4444;">&times;</button>
+                                            </td>
+                                        </tr>
+                                    `).join('') : '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">No hay gastos registrados en este turno.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function addExpense() {
+            const amountInput = document.getElementById('exp-amount');
+            const reasonInput = document.getElementById('exp-reason');
+            const amount = parseFloat(amountInput.value);
+            const reason = reasonInput.value.trim() || 'Gasto Operativo';
+
+            if (isNaN(amount) || amount <= 0) {
+                return alert("Por favor ingrese un monto válido.");
+            }
+
+            const record = {
+                id: generateId(),
+                type: 'expense', 
+                date: new Date().toISOString(),
+                productName: reason,
+                amount: 1,
+                total: amount,
+                user: state.currentUser.name,
+                point: state.settings.pointName
+            };
+
+            state.history.unshift(record);
+            saveData();
+            amountInput.value = '';
+            reasonInput.value = '';
+            renderExpenses();
+            alert("Gasto registrado.");
+        }
+
+        function renderWithdrawals() {
+            const currentWithdrawals = state.history.filter(h => 
+                h.type === 'withdrawal' && 
+                h.user === state.currentUser.name && 
+                h.point === state.settings.pointName
+            );
+
+            const totalWithdrawn = currentWithdrawals.reduce((sum, w) => sum + w.total, 0);
+
+            let html = `
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <div class="stat-card" style="margin-bottom: 20px;">
+                        <h3 style="margin-bottom:15px;">Registrar Extracción de Efectivo</h3>
+                        <p style="font-size:0.85rem; color:#64748b; margin-bottom:15px;">
+                            Utilice esta sección para retiros de dinero de la caja (Entregar al dueño, depósito banco).
+                            <br><strong>Nota:</strong> Para pagos de servicios o compras, use la sección "Gastos".
+                        </p>
+                        
+                        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:15px; align-items:end;">
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Monto a Retirar</label>
+                                <input type="number" id="w-amount" class="input-field" placeholder="0.00">
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Motivo</label>
+                                <input type="text" id="w-reason" class="input-field" placeholder="Ej: Entrega al dueño...">
+                            </div>
+                        </div>
+                        <button onclick="addWithdrawal()" class="btn btn-dark" style="width:100%; margin-top:15px; justify-content:center;">
+                            Registrar Extracción
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <div style="padding:15px; border-bottom:1px solid #e2e8f0; background:#f8fafc; display:flex; justify-content:space-between; align-items:center;">
+                            <h4 style="margin:0;">Extracciones del Turno Actual</h4>
+                            <span style="font-weight:bold; font-size:1.1rem; color:#334155;">Total: ${formatCurrency(totalWithdrawn)}</span>
+                        </div>
+                        <div class="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Motivo</th>
+                                        <th style="text-align:right;">Monto</th>
+                                        <th style="text-align:right;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${currentWithdrawals.length > 0 ? currentWithdrawals.map(w => `
+                                        <tr>
+                                            <td style="color:#64748b; font-size:0.85rem;">${new Date(w.date).toLocaleTimeString()}</td>
+                                            <td>${w.productName || 'Sin motivo'}</td>
+                                            <td style="text-align:right; font-weight:bold;">${formatCurrency(w.total)}</td>
+                                            <td style="text-align:right;">
+                                                <button onclick="deleteWithdrawal('${w.id}')" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#ef4444;">&times;</button>
+                                            </td>
+                                        </tr>
+                                    `).join('') : '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">No hay extracciones registradas.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function addWithdrawal() {
+            const amountInput = document.getElementById('w-amount');
+            const reasonInput = document.getElementById('w-reason');
+            const amount = parseFloat(amountInput.value);
+            const reason = reasonInput.value.trim() || 'Extracción General';
+
+            if (isNaN(amount) || amount <= 0) {
+                return alert("Por favor ingrese un monto válido.");
+            }
+
+            const record = {
+                id: generateId(),
+                type: 'withdrawal',
+                date: new Date().toISOString(),
+                productName: reason,
+                amount: 1,
+                total: amount,
+                user: state.currentUser.name,
+                point: state.settings.pointName
+            };
+
+            state.history.unshift(record);
+            saveData();
+            amountInput.value = '';
+            reasonInput.value = '';
+            renderWithdrawals();
+            alert("Extracción registrada.");
+        }
+
+        function deleteWithdrawal(id) {
+            if(confirm("¿Eliminar este registro?")) {
+                state.history = state.history.filter(h => h.id !== id);
+                saveData();
+                if(document.getElementById('page-title').innerText.includes('Gastos')) renderExpenses();
+                else renderWithdrawals();
+            }
+        }
+
+        function processQuickSale(total, method, mode) {
+            currentPayMethod = method;
+            currentCheckoutMode = mode;
+            confirmSale(total);
+        }
+
+        function renderPOS() {
+            const gridContainer = document.querySelector('.products-grid');
+            const scrollPos = gridContainer ? gridContainer.scrollTop : 0;
+            const isWholesale = activePOSMode === 'wholesale';
+            
+            document.getElementById('app-content').className = isWholesale ? 'wholesale-mode' : '';
+
+            const activeCart = isWholesale ? state.wholesaleCart : state.cart;
+
+            let filtered = state.inventory.filter(p => 
+                p.name.toLowerCase().includes(state.searchTerm.toLowerCase()) && p.stock > 0
+            );
+
+            if (isWholesale) {
+                filtered = filtered.filter(p => p.category === 'x Mayor');
+            } else {
+                filtered = filtered.filter(p => p.category !== 'x Mayor');
+                if (state.selectedCategory !== 'Todas') {
+                    filtered = filtered.filter(p => p.category === state.selectedCategory);
+                }
+            }
+
+            const cartTotal = activeCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            const showQuickButtons = state.settings.enableCheckoutUI === false;
+
+            let catFilterHtml = '';
+            if (isWholesale) {
+                catFilterHtml = `
+                    <div class="category-filter">
+                        <button class="cat-chip wholesale-mode active">📦 Categoría Única: x Mayor</button>
+                    </div>
+                `;
+            } else {
+                catFilterHtml = `
+                    <div class="category-filter">
+                        ${['Todas', ...state.categories.filter(c => c !== 'x Mayor')].map(cat => `
+                            <button class="cat-chip ${state.selectedCategory === cat ? 'active' : ''}" 
+                                onclick="setCategory('${cat}')">${cat}</button>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            let html = `
+                ${catFilterHtml}
+
+                <div class="pos-container">
+                    <div class="products-grid">
+                        ${filtered.length === 0 ? '<p style="color:#94a3b8; text-align:center; grid-column: 1/-1; padding-top:40px;">No hay productos.</p>' : ''}
+                        ${filtered.map(p => `
+                            <div class="product-card" onclick="addToCart('${p.id}', false, '${activePOSMode}')">
+                                <div class="qty-btn-card" onclick="event.stopPropagation(); addToCart('${p.id}', true, '${activePOSMode}')">#</div>
+                                <div style="display:flex; justify-content:center; margin-bottom:10px;">
+                                    <div class="product-icon">${p.name.substring(0,2).toUpperCase()}</div>
+                                </div>
+                                <div class="product-name-card">${p.name}</div>
+                                ${isWholesale && p.unitsPerBox ? `<div style="font-size:0.7rem; color:var(--color-wholesale); margin-bottom:4px;">📦 Trae: <strong>${p.unitsPerBox} uds</strong></div>` : ''}
+                                <div class="product-info">
+                                    <span class="product-stock" style="${p.stock < 5 ? 'color:var(--color-danger); font-weight:bold;' : ''}">Stock: ${p.stock}</span>
+                                    <span class="product-price">${formatCurrency(p.price)}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="cart-sidebar">
+                        <div class="cart-header">
+                            <span>${isWholesale ? 'Mayorista' : 'Orden'} - ${state.currentUser.name}</span>
+                            ${activeCart.length > 0 ? `<button onclick="clearCart('${activePOSMode}')" style="color:var(--color-danger); border:none; background:none; cursor:pointer; font-size:0.8rem;">Limpiar</button>` : ''}
+                        </div>
+                        <div class="cart-items">
+                            ${activeCart.length === 0 ? '<div style="text-align:center; color:#cbd5e1; margin-top:40px;">Carrito vacío</div>' : ''}
+                            ${activeCart.map(item => `
+                                <div class="cart-item">
+                                    <div style="flex:1;">
+                                        <div style="font-weight:500; font-size:0.9rem;">${item.name}</div>
+                                        <div style="font-size:0.75rem; color:#64748b;">${formatCurrency(item.price)} c/u</div>
+                                    </div>
+                                    <div class="cart-controls">
+                                        <button onclick="updateCartQty('${item.id}', -1, '${activePOSMode}')">-</button>
+                                        <span class="cart-qty-display" onclick="promptQty('${item.id}', '${activePOSMode}')">${item.qty}</span>
+                                        <button onclick="updateCartQty('${item.id}', 1, '${activePOSMode}')">+</button>
+                                    </div>
+                                    <div style="font-weight:bold; font-size:0.9rem;">
+                                        ${formatCurrency(item.price * item.qty)}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="cart-footer">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+                                <span style="color:${isWholesale ? '#fde68a' : '#94a3b8'};">Total a Pagar</span>
+                                <span style="font-size:1.5rem; font-weight:bold;">${formatCurrency(cartTotal)}</span>
+                            </div>
+                            
+                            ${showQuickButtons ? `
+                                <div style="display:flex; gap:10px;">
+                                    <button class="btn ${isWholesale ? 'btn-warning' : 'btn-primary'}" style="flex:1; justify-content:center; padding:12px;" 
+                                        ${activeCart.length === 0 ? 'disabled' : ''} onclick="processQuickSale(${cartTotal}, 'cash', '${activePOSMode}')">
+                                        💵 Efectivo
+                                    </button>
+                                    <button class="btn btn-dark" style="flex:1; justify-content:center; padding:12px; background: #8b5cf6;" 
+                                        ${activeCart.length === 0 ? 'disabled' : ''} onclick="processQuickSale(${cartTotal}, 'transfer', '${activePOSMode}')">
+                                        📱 Transf.
+                                    </button>
+                                </div>
+                            ` : `
+                                <button class="btn ${isWholesale ? 'btn-warning' : 'btn-primary'}" style="width:100%; justify-content:center; padding:12px;" 
+                                    ${activeCart.length === 0 ? 'disabled' : ''} onclick="openCheckoutModal(${cartTotal}, '${activePOSMode}')">
+                                    Cobrar ${isWholesale ? '(Mayorista)' : ''}
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+
+            const newGridContainer = document.querySelector('.products-grid');
+            if (newGridContainer && scrollPos > 0) {
+                newGridContainer.scrollTop = scrollPos;
+            }
+        }
+
+        function setCategory(cat) {
+            state.selectedCategory = cat;
+            renderPOS();
+        }
+
+        function addToCart(id, askQty = false, mode = 'retail') {
+            const product = state.inventory.find(p => p.id === id);
+            if (!product || product.stock <= 0) return alert("Sin stock");
+            
+            const activeCart = mode === 'wholesale' ? state.wholesaleCart : state.cart;
+
+            let qtyToAdd = 1;
+            if (askQty) {
+                const input = prompt(`Cantidad a vender de: ${product.name}`, "1");
+                if (input === null) return;
+                qtyToAdd = parseInt(input);
+                if (isNaN(qtyToAdd) || qtyToAdd <= 0) return;
+            }
+
+            const existing = activeCart.find(c => c.id === id);
+            const currentQtyInCart = existing ? existing.qty : 0;
+            
+            if (currentQtyInCart + qtyToAdd > product.stock) {
+                alert(`Solo hay ${product.stock} unidades disponibles.`);
+                return;
+            }
+
+            if (existing) {
+                existing.qty += qtyToAdd;
+            } else {
+                activeCart.push({ ...product, qty: qtyToAdd });
+            }
+            renderPOS();
+        }
+
+        function promptQty(id, mode = 'retail') {
+            const activeCart = mode === 'wholesale' ? state.wholesaleCart : state.cart;
+            const item = activeCart.find(c => c.id === id);
+            const product = state.inventory.find(p => p.id === id);
+            const input = prompt(`Cambiar cantidad para ${item.name} (Max: ${product.stock})`, item.qty);
+            if (input !== null) {
+                const newQty = parseInt(input);
+                if (!isNaN(newQty) && newQty > 0) {
+                    if (newQty <= product.stock) {
+                        item.qty = newQty;
+                        renderPOS();
+                    } else {
+                        alert("Cantidad excede stock disponible");
+                    }
+                }
+            }
+        }
+
+        function updateCartQty(id, change, mode = 'retail') {
+            const activeCart = mode === 'wholesale' ? state.wholesaleCart : state.cart;
+            const itemIndex = activeCart.findIndex(c => c.id === id);
+            if (itemIndex === -1) return;
+            
+            const item = activeCart[itemIndex];
+            const product = state.inventory.find(p => p.id === id);
+            const newQty = item.qty + change;
+            
+            if (newQty > product.stock) return; 
+            if (newQty <= 0) activeCart.splice(itemIndex, 1);
+            else item.qty = newQty;
+            renderPOS();
+        }
+
+        function clearCart(mode = 'retail') {
+            if (mode === 'wholesale') {
+                state.wholesaleCart = [];
+            } else {
+                state.cart = [];
+            }
+            renderPOS();
+        }
+
+        function handleSearch(val) {
+            state.searchTerm = val;
+            renderPOS();
+        }
+
+        function renderInventory() {
+            const scrollContainer = document.querySelector('.table-scroll');
+            const scrollPos = scrollContainer ? scrollContainer.scrollTop : 0;
+
+            let sortedInv = [...state.inventory];
+            const sortMethod = state.settings.sortInventoryBy || 'stock_asc';
+
+            if (sortMethod === 'stock_asc') sortedInv.sort((a, b) => a.stock - b.stock);
+            else if (sortMethod === 'stock_desc') sortedInv.sort((a, b) => b.stock - a.stock);
+            else if (sortMethod === 'price_asc') sortedInv.sort((a, b) => a.price - b.price);
+            else if (sortMethod === 'price_desc') sortedInv.sort((a, b) => b.price - a.price);
+            else if (sortMethod === 'alpha_asc') sortedInv.sort((a, b) => a.name.localeCompare(b.name));
+
+            const isAdmin = state.currentUser.role === 'admin';
+
+            let html = `
+                <div style="display:flex; justify-content:flex-end; margin-bottom:16px; gap: 10px;">
+                    <button class="btn btn-outline" onclick="exportInventoryPDF()">📄 Descargar Inventario</button>
+                    ${isAdmin ? `<button class="btn btn-dark" onclick="openAddProductModal()">+ Nuevo Producto</button>` : ''}
+                </div>
+                <div class="table-container">
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cat.</th>
+                                    <th>Costo (PC)</th>
+                                    <th>Venta (PV)</th>
+                                    ${isAdmin ? '<th>Margen</th>' : ''}
+                                    <th>Stock</th>
+                                    <th style="text-align:right;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${sortedInv.map(item => {
+                                    const cost = item.cost || 0;
+                                    const profit = item.price - cost;
+                                    const isW = item.category === 'x Mayor';
+                                    return `
+                                    <tr class="${item.stock < 5 ? 'row-danger' : ''}">
+                                        <td style="font-weight:500;">
+                                            ${item.name}
+                                            ${isW && item.unitsPerBox ? `<div style="font-size:0.7rem; color:var(--color-wholesale);">Caja: ${item.unitsPerBox}u</div>` : ''}
+                                        </td>
+                                        <td><span style="font-size:0.8rem; background:${isW?'#fef3c7':'#f1f5f9'}; padding:2px 6px; border-radius:4px; color:${isW?'#d97706':'#64748b'}; font-weight:${isW?'bold':'normal'};">${item.category || 'Otros'}</span></td>
+                                        <td style="color:#64748b;">${formatCurrency(cost)}</td>
+                                        <td style="font-weight:bold;">${formatCurrency(item.price)}</td>
+                                        ${isAdmin ? `
+                                        <td style="color:${profit > 0 ? 'var(--color-success)' : 'var(--color-danger)'}; font-size:0.85rem;">
+                                            ${formatCurrency(profit)}
+                                        </td>
+                                        ` : ''}
+                                        <td>
+                                            <span style="font-weight:bold;">${item.stock}</span>
+                                            ${item.stock < 5 ? '<span style="font-size:0.7rem; margin-left:5px;">(BAJO)</span>' : ''}
+                                        </td>
+                                        <td style="text-align:right;">
+                                            <button onclick="openAdjustModal('${item.id}')" class="btn btn-outline btn-sm">Ajustar Stock</button>
+                                            
+                                            ${isAdmin ? `
+                                                <button onclick="openPriceModal('${item.id}')" class="btn btn-outline btn-sm" style="color:var(--color-text-main);">Editar</button>
+                                                <button onclick="deleteProduct('${item.id}')" class="btn btn-outline btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);">Borrar</button>
+                                            ` : ''}
+                                        </td>
+                                    </tr>
+                                    `
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        ${state.inventory.length === 0 ? '<div style="padding:20px; text-align:center; color:#94a3b8;">Inventario vacío</div>' : ''}
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+
+            const newScrollContainer = document.querySelector('.table-scroll');
+            if (newScrollContainer && scrollPos > 0) {
+                newScrollContainer.scrollTop = scrollPos;
+            }
+        }
+
+        function exportInventoryPDF() {
+            let sortedInv = [...state.inventory];
+            const sortMethod = state.settings.sortInventoryBy || 'stock_asc';
+
+            if (sortMethod === 'stock_asc') sortedInv.sort((a, b) => a.stock - b.stock);
+            else if (sortMethod === 'stock_desc') sortedInv.sort((a, b) => b.stock - a.stock);
+            else if (sortMethod === 'price_asc') sortedInv.sort((a, b) => a.price - b.price);
+            else if (sortMethod === 'price_desc') sortedInv.sort((a, b) => b.price - a.price);
+            else if (sortMethod === 'alpha_asc') sortedInv.sort((a, b) => a.name.localeCompare(b.name));
+
+            const element = document.createElement('div');
+            element.style.padding = '20px';
+            element.style.fontFamily = 'Arial, sans-serif';
+            
+            element.innerHTML = `
+                <div style="text-align:center; margin-bottom:20px; border-bottom:2px solid #333; padding-bottom:10px;">
+                    <h1 style="margin:0;">Micuadre POS</h1>
+                    <h3 style="margin:5px 0; color:#666;">Reporte de Stock Actual</h3>
+                </div>
+                
+                <div style="margin-bottom:20px; font-size: 0.9rem;">
+                    <div><strong>Fecha:</strong> ${new Date().toLocaleString()}</div>
+                    <div><strong>Usuario:</strong> ${state.currentUser.name}</div>
+                    <div><strong>Sede:</strong> ${state.settings.pointName}</div>
+                </div>
+
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                    <thead>
+                        <tr style="background:#eee; border-bottom:2px solid #333;">
+                            <th style="text-align:left; padding:8px;">Producto</th>
+                            <th style="text-align:left; padding:8px;">Categoría</th>
+                            <th style="text-align:right; padding:8px;">Precio</th>
+                            <th style="text-align:right; padding:8px;">Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sortedInv.map(p => `
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:6px;">${p.name} ${p.category === 'x Mayor' ? `(Caja: ${p.unitsPerBox}u)` : ''}</td>
+                                <td style="padding:6px;">${p.category || '-'}</td>
+                                <td style="text-align:right; padding:6px;">${formatCurrency(p.price)}</td>
+                                <td style="text-align:right; padding:6px;">
+                                    <strong style="${p.stock < 5 ? 'color:red;' : ''}">${p.stock}</strong>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                
+                <div style="margin-top:20px; text-align:right; font-size:0.9rem;">
+                    <strong>Total Referencias:</strong> ${sortedInv.length}<br>
+                    <strong>Total Unidades:</strong> ${sortedInv.reduce((acc, curr) => acc + curr.stock, 0)}
+                </div>
+            `;
+
+            const opt = {
+                margin:       10,
+                filename:     `Stock_${state.settings.pointName}_${new Date().toLocaleDateString().replace(/\//g,'-')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
+        function addProduct(name, cost, price, stock, category, unitsPerBox) {
+            if (state.currentUser.role !== 'admin') return;
+            state.inventory.push({ 
+                id: generateId(), 
+                name, 
+                cost: parseFloat(cost), 
+                price: parseFloat(price), 
+                stock: parseInt(stock) || 0, 
+                category: category,
+                unitsPerBox: category === 'x Mayor' ? (parseInt(unitsPerBox) || 1) : null
+            });
+            saveData();
+            renderInventory();
+            closeModal();
+        }
+
+        function deleteProduct(id) {
+            if (state.currentUser.role !== 'admin') return alert("Solo admin");
+            if(confirm('¿Eliminar producto?')) {
+                state.inventory = state.inventory.filter(i => i.id !== id);
+                saveData();
+                renderInventory();
+            }
+        }
+
+        function updatePrice(id, newCost, newPrice, newUnits = null) {
+            if (state.currentUser.role !== 'admin') return alert("Solo admin");
+            const item = state.inventory.find(i => i.id === id);
+            if (item) {
+                item.cost = parseFloat(newCost);
+                item.price = parseFloat(newPrice);
+                if (item.category === 'x Mayor' && newUnits !== null) {
+                    item.unitsPerBox = parseInt(newUnits) || 1;
+                }
+                saveData();
+                renderInventory();
+                closeModal();
+            }
+        }
+
+        function adjustStock(id, amount, type) {
+            const item = state.inventory.find(i => i.id === id);
+            if (item) {
+                const qty = parseInt(amount) || 0;
+                if (qty <= 0) return alert("Cantidad inválida");
+                state.history.unshift({
+                    id: generateId(),
+                    type: type, 
+                    date: new Date().toISOString(),
+                    productName: item.name,
+                    amount: qty,
+                    total: 0,
+                    user: state.currentUser.name,
+                    point: state.settings.pointName 
+                });
+
+                if (type === 'add') item.stock += qty;
+                if (type === 'loss') item.stock = Math.max(0, item.stock - qty);
+                
+                saveData();
+                renderInventory();
+                closeModal();
+            }
+        }
+
+        function renderUsers() {
+            if (state.currentUser.role !== 'admin') return switchTab('pos');
+
+            const html = `
+                <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
+                    <button class="btn btn-dark" onclick="openAddUserModal()">+ Nuevo Trabajador</button>
+                </div>
+                <div class="table-container">
+                    <div class="table-scroll">
+                        <table>
+                            <thead><tr><th>Nombre</th><th>Rol</th><th>Pago</th><th>Acceso Sistema</th><th>Acciones</th></tr></thead>
+                            <tbody>
+                                ${state.users.map(u => {
+                                    if(u.id === 'admin') return '';
+                                    return `
+                                    <tr>
+                                        <td style="font-weight:500;">${u.name}</td>
+                                        <td>
+                                            <span class="badge badge-worker">${u.role}</span>
+                                        </td>
+                                        <td>${formatSalaryConfig(u.salaryConfig)}</td>
+                                        <td>${u.canLogin ? '✅' : '❌'}</td>
+                                        <td>
+                                            <button onclick="deleteUser('${u.id}')" class="btn btn-outline btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);">Eliminar</button>
+                                        </td>
+                                    </tr>
+                                    `
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function addUser(data) {
+            if (state.users.find(u => u.name === data.name)) return alert("El nombre ya existe");
+            state.users.push({
+                id: generateId(),
+                ...data
+            });
+            saveData();
+            renderUsers();
+            closeModal();
+        }
+
+        function deleteUser(id) {
+            if(confirm("¿Eliminar trabajador? Se mantendrán sus registros históricos.")) {
+                state.users = state.users.filter(u => u.id !== id);
+                saveData();
+                renderUsers();
+            }
+        }
+
+        function renderSettings() {
+            if (state.currentUser.role !== 'admin') return switchTab('pos');
+
+            const html = `
+                <div style="max-width:1000px; margin:0 auto; display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:24px;">
+                    
+                    <div class="stat-card">
+                        <h3 style="margin-bottom:20px;">Sede y Datos</h3>
+                        
+                        <div class="input-group">
+                            <label>Nombre de este Punto (Sede)</label>
+                            <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                                <input id="point-name-input" class="input-field" value="${state.settings.pointName}" style="flex:1; min-width: 200px;">
+                                <button onclick="savePointName()" class="btn btn-primary" style="flex-shrink:0;">Guardar</button>
+                            </div>
+                        </div>
+
+                        <hr style="margin:20px 0; border:0; border-top:1px solid #e2e8f0;">
+
+                        <h4 style="margin-bottom:10px;">Gestión de Datos</h4>
+                        <div style="display:flex; gap:15px; flex-wrap: wrap;">
+                            <button onclick="exportData()" class="btn btn-dark" style="flex:1; justify-content:center; min-width: 120px;">⬇ Exportar</button>
+                            <button onclick="document.getElementById('import-file').click()" class="btn btn-outline" style="flex:1; justify-content:center; min-width: 120px;">⬆ Importar</button>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <h3 style="margin-bottom:20px;">⚙ Preferencias Generales</h3>
+                        <div style="display:flex; align-items:flex-start; gap:12px; padding:15px; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; margin-bottom: 10px;">
+                            <input type="checkbox" id="check-ui" style="width:20px; height:20px; margin-top:2px; cursor:pointer;" 
+                                ${state.settings.enableCheckoutUI ? 'checked' : ''} 
+                                onchange="savePreference(this.checked)">
+                            <div>
+                                <label for="check-ui" style="font-weight:bold; cursor:pointer; display:block; margin-bottom:4px;">Mostrar interfaz de cobro</label>
+                                <div style="font-size:0.85rem; color:#64748b; line-height:1.4;">
+                                    Si se desmarca, <strong>la venta es inmediata</strong> al presionar "Cobrar".
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- NUEVO: Habilitar ventas por mayor -->
+                        <div style="display:flex; align-items:flex-start; gap:12px; padding:15px; border:1px solid #fde68a; border-radius:8px; background:#fffbeb;">
+                            <input type="checkbox" id="check-wholesale" style="width:20px; height:20px; margin-top:2px; cursor:pointer;" 
+                                ${state.settings.wholesaleEnabled ? 'checked' : ''} 
+                                onchange="saveWholesalePref(this.checked)">
+                            <div>
+                                <label for="check-wholesale" style="font-weight:bold; color:#b45309; cursor:pointer; display:block; margin-bottom:4px;">Habilitar Ventas "x Mayor"</label>
+                                <div style="font-size:0.85rem; color:#d97706; line-height:1.4;">
+                                    Activa una sección separada para ventas mayoristas. <strong>El dinero no se mezcla</strong> con el de la caja del dependiente.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NUEVA TARJETA: Gestión de Categorías -->
+                    <div class="stat-card">
+                        <h3 style="margin-bottom:20px;">🏷️ Categorías</h3>
+                        <div class="input-group">
+                            <label>Nueva Categoría</label>
+                            <div style="display:flex; gap:10px;">
+                                <input id="new-cat-input" class="input-field" placeholder="Nombre...">
+                                <button onclick="addCategory()" class="btn btn-primary">Agregar</button>
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">
+                            ${state.categories.filter(c => c !== 'Todas' && c !== 'x Mayor').map(c => `
+                                <span style="background:#e2e8f0; padding:4px 10px; border-radius:16px; font-size:0.85rem; color:#475569;">
+                                    ${c}
+                                    ${!DEFAULT_CATEGORIES.includes(c) ? `<span onclick="deleteCategory('${c}')" style="cursor:pointer; margin-left:6px; color:#ef4444; font-weight:bold;">&times;</span>` : ''}
+                                </span>
+                            `).join('')}
+                            ${state.settings.wholesaleEnabled ? `<span style="background:#fef3c7; padding:4px 10px; border-radius:16px; font-size:0.85rem; color:#d97706; font-weight:bold; border: 1px solid #fde68a;">x Mayor (Protegida)</span>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- NUEVA TARJETA DE SEGURIDAD -->
+                    <div class="stat-card">
+                        <h3 style="margin-bottom:20px;">🔐 Seguridad Admin</h3>
+                        <p style="font-size:0.85rem; color:#64748b; margin-bottom:15px;">Cambiar la contraseña del usuario actual (${state.currentUser.name}).</p>
+                        
+                        <div class="input-group">
+                            <label>Nueva Contraseña</label>
+                            <input id="admin-new-pass" type="password" class="input-field" placeholder="Ingrese nueva clave">
+                        </div>
+                        
+                        <button onclick="changeAdminPassword()" class="btn btn-danger" style="width:100%; justify-content:center; margin-top:5px;">Actualizar Contraseña</button>
+                    </div>
+
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function saveWholesalePref(isChecked) {
+            state.settings.wholesaleEnabled = isChecked;
+            if (isChecked && !state.categories.includes('x Mayor')) {
+                state.categories.push('x Mayor');
+            }
+            saveData();
+            updateSidebarVisibility();
+            renderSettings();
+        }
+
+        function addCategory() {
+            const input = document.getElementById('new-cat-input');
+            const val = input.value.trim();
+            if(!val) return alert("Escriba un nombre");
+            if(val.toLowerCase() === 'x mayor') return alert("Ese nombre está reservado por el sistema.");
+            if(state.categories.includes(val)) return alert("Ya existe esa categoría");
+            
+            state.categories.push(val);
+            saveData();
+            renderSettings();
+        }
+
+        function deleteCategory(cat) {
+            if(DEFAULT_CATEGORIES.includes(cat) || cat === 'x Mayor') return alert("No se puede eliminar una categoría por defecto o reservada.");
+            if(!confirm(`¿Eliminar categoría "${cat}"?`)) return;
+            
+            state.categories = state.categories.filter(c => c !== cat);
+            saveData();
+            renderSettings();
+        }
+
+        function savePointName() {
+            const name = document.getElementById('point-name-input').value.trim();
+            if(!name) return alert("El nombre no puede estar vacío");
+            state.settings.pointName = name;
+            saveData();
+            alert("Nombre guardado correctamente.");
+        }
+
+        function savePreference(isChecked) {
+            state.settings.enableCheckoutUI = isChecked;
+            saveData();
+        }
+
+        function saveSortPreference(value) {
+            state.settings.sortInventoryBy = value;
+            saveData();
+        }
+
+        function changeAdminPassword() {
+            const newPass = document.getElementById('admin-new-pass').value;
+            if (!newPass || newPass.trim() === "") return alert("La contraseña no puede estar vacía.");
+            
+            if(confirm("¿Seguro que desea cambiar su contraseña de administrador?")) {
+                state.currentUser.password = newPass;
+                const idx = state.users.findIndex(u => u.id === state.currentUser.id);
+                if(idx !== -1) {
+                    state.users[idx].password = newPass;
+                }
+                saveData();
+                alert("Contraseña actualizada exitosamente.");
+                document.getElementById('admin-new-pass').value = '';
+            }
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(state);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const exportFileDefaultName = `backup_pos_${state.settings.pointName.replace(/\s/g,'_')}_${new Date().toLocaleDateString().replace(/\//g,'-')}.json`;
+
+            let linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function processImport(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedState = JSON.parse(e.target.result);
+                    if(confirm("¿Desea importar el CATÁLOGO DE PRODUCTOS del archivo?\n\nNota: El historial de ventas NO se importará.")) {
+                        let importedCount = 0;
+                        if (importedState.inventory && Array.isArray(importedState.inventory)) {
+                            const currentIds = new Set(state.inventory.map(i => i.id));
+                            importedState.inventory.forEach(item => {
+                                if (!currentIds.has(item.id)) {
+                                    if(item.cost === undefined) item.cost = item.price * 0.7;
+                                    state.inventory.push(item);
+                                    importedCount++;
+                                }
+                            });
+                        }
+                        saveData();
+                        alert(`Proceso finalizado.\n- Productos nuevos agregados: ${importedCount}`);
+                        renderSettings();
+                    }
+                } catch (err) {
+                    alert("Error al leer el archivo. Asegúrese de que sea un backup válido.");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; 
+        }
+
+        function renderHistory() {
+            const isAdmin = state.currentUser.role === 'admin';
+            const uniquePoints = [...new Set(state.history.map(h => h.point || 'Desconocido'))];
+            
+            let filteredHistory = state.history;
+
+            if (!isAdmin) {
+                filteredHistory = filteredHistory.filter(h => h.point === state.settings.pointName);
+                filteredHistory = filteredHistory.filter(h => {
+                      const isSelf = h.user === state.currentUser.name;
+                      const recordUser = state.users.find(u => u.name === h.user);
+                      const isRecordByAdmin = recordUser && recordUser.role === 'admin';
+                      const isNameAdmin = h.user === 'Admin';
+                      return isSelf || isRecordByAdmin || isNameAdmin;
+                });
+            } else {
+                if (state.filterPoint !== 'All') {
+                    filteredHistory = filteredHistory.filter(h => h.point === state.filterPoint);
+                }
+            }
+
+            let html = `
+                ${isAdmin ? `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:16px; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <button onclick="clearHistory()" class="btn btn-outline btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);">
+                            🗑️ Borrar Historial Completo
+                        </button>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:0.9rem; font-weight:bold;">Filtrar por Sede:</span>
+                            <select onchange="state.filterPoint = this.value; renderHistory()" style="padding:5px; border-radius:6px; border:1px solid #e2e8f0;">
+                                <option value="All" ${state.filterPoint === 'All' ? 'selected' : ''}>Todas</option>
+                                ${uniquePoints.map(p => `<option value="${p}" ${state.filterPoint === p ? 'selected' : ''}>${p}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="table-container">
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Punto</th>
+                                    <th>Usuario</th>
+                                    <th>Tipo</th>
+                                    <th>Detalle</th>
+                                    <th>Total</th>
+                                    ${isAdmin ? '<th>Acciones</th>' : ''}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filteredHistory.map(record => {
+                                    let typeBadge = '';
+                                    let detail = '';
+                                    let amountClass = '';
+
+                                    if (record.type === 'sale') {
+                                        typeBadge = `<span class="badge badge-sale">Venta</span>`;
+                                        detail = record.items.map(i => `<div><b>${i.qty}x</b> ${i.name}</div>`).join('');
+                                        amountClass = 'font-weight:bold;';
+                                    } else if (record.type === 'sale_wholesale') {
+                                        typeBadge = `<span class="badge badge-wholesale">Venta x Mayor</span>`;
+                                        detail = record.items.map(i => `<div><b>${i.qty}x</b> ${i.name} ${i.unitsPerBox ? `(Caja ${i.unitsPerBox}u)`:''}</div>`).join('');
+                                        amountClass = 'font-weight:bold; color:var(--color-wholesale);';
+                                    } else if (record.type === 'add') {
+                                        typeBadge = `<span class="badge badge-entry">Entrada</span>`;
+                                        detail = `+${record.amount} ${record.productName}`;
+                                    } else if (record.type === 'loss') {
+                                        typeBadge = `<span class="badge badge-loss">Merma</span>`;
+                                        detail = `-${record.amount} ${record.productName}`;
+                                    } else if (record.type === 'withdrawal') {
+                                        typeBadge = `<span class="badge badge-withdrawal">Extracción</span>`;
+                                        detail = record.productName || 'Retiro de efectivo';
+                                        amountClass = 'color:var(--color-danger); font-weight:bold;';
+                                    } else if (record.type === 'expense') {
+                                        typeBadge = `<span class="badge badge-expense">Gasto</span>`;
+                                        detail = record.productName || 'Gasto operativo';
+                                        amountClass = 'color:#991b1b; font-weight:bold;';
+                                    }
+
+                                    return `
+                                    <tr>
+                                        <td style="color:#64748b; font-size:0.85rem;">${new Date(record.date).toLocaleString('es-CU')}</td>
+                                        <td><span class="badge-point">${record.point || 'N/A'}</span></td>
+                                        <td style="font-weight:500;">${record.user || 'Desconocido'}</td>
+                                        <td>${typeBadge}</td>
+                                        <td style="font-size:0.85rem;">${detail}</td>
+                                        <td style="${amountClass}">${record.total > 0 ? formatCurrency(record.total) : '-'}</td>
+                                        ${isAdmin ? `
+                                            <td style="text-align:right;">
+                                                ${(record.type === 'sale' || record.type === 'sale_wholesale') ? 
+                                                    `<button onclick="revertSale('${record.id}')" class="btn btn-sm btn-outline" style="color:var(--color-danger); border-color:var(--color-danger); padding: 2px 8px; font-size: 0.75rem;">
+                                                        ↩ Revertir
+                                                    </button>` 
+                                                : ''}
+                                            </td>
+                                        ` : ''}
+                                    </tr>
+                                    `
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function revertSale(saleId) {
+            if (!confirm("¿CONFIRMAR REVERSIÓN DE VENTA?\n\n- Se devolverán los productos al inventario.\n- Se eliminará este registro del historial.\n- Esta acción es irreversible.")) {
+                return;
+            }
+
+            const saleIndex = state.history.findIndex(h => h.id === saleId);
+            if (saleIndex === -1) return alert("Venta no encontrada.");
+
+            const saleRecord = state.history[saleIndex];
+
+            if (saleRecord.items && Array.isArray(saleRecord.items)) {
+                saleRecord.items.forEach(item => {
+                    const productInInventory = state.inventory.find(p => p.id === item.id);
+                    if (productInInventory) {
+                        productInInventory.stock += item.qty;
+                    }
+                });
+            }
+
+            state.history.splice(saleIndex, 1);
+            saveData();
+            if(document.getElementById('page-title').innerText.includes('Transferencias')) renderTransfers();
+            else renderHistory();
+            renderDashboard(); 
+            alert("Venta revertida exitosamente. El stock ha sido restaurado.");
+        }
+
+        function clearHistory() {
+            if (state.currentUser.role !== 'admin') return;
+            
+            if (confirm("⚠️ ATENCIÓN ⚠️\n\n¿Está seguro de que desea BORRAR TODO EL HISTORIAL?\n\nEsta acción eliminará permanentemente todos los registros de ventas, entradas y mermas de TODAS las sedes.\n\nNo se puede deshacer.")) {
+                if(confirm("Confirme nuevamente: ¿Borrar definitivamente todo el historial?")) {
+                    state.history = [];
+                    saveData();
+                    renderHistory();
+                    renderDashboard();
+                    alert("Historial eliminado correctamente.");
+                }
+            }
+        }
+
+        function renderReports() {
+            if (state.currentUser.role !== 'admin') return switchTab('pos');
+
+            let html = `
+                <h3 style="margin-bottom:20px;">Reportes de Cierres de Turno (Cuadres)</h3>
+                <div class="table-container">
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha Cierre</th>
+                                    <th>Usuario</th>
+                                    <th>Sede</th>
+                                    <th>Total Ventas</th>
+                                    <th>Ganancia</th> 
+                                    <th>Efectivo</th>
+                                    <th>Transferencia</th>
+                                    <th>Resultado Caja</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${state.shifts && state.shifts.length > 0 ? state.shifts.map(shift => `
+                                    <tr>
+                                        <td>${new Date(shift.date).toLocaleString('es-CU')}</td>
+                                        <td style="font-weight:bold;">${shift.user}</td>
+                                        <td>${shift.point}</td>
+                                        <td style="font-weight:bold;">${formatCurrency(shift.totalSales)}</td>
+                                        <td style="color:var(--color-success); font-weight:bold;">${formatCurrency(shift.totalProfit || 0)}</td>
+                                        <td>${formatCurrency(shift.cashSales)}</td>
+                                        <td>${formatCurrency(shift.transferSales)}</td>
+                                        <td>
+                                            <span style="font-weight:bold; color:${shift.cashDiff < 0 ? 'var(--color-danger)' : (shift.cashDiff > 0 ? 'blue' : 'var(--color-success)')}">
+                                                ${shift.cashDiff === 0 ? 'OK' : formatCurrency(shift.cashDiff)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button onclick='renderShiftDetails(${JSON.stringify(shift.id)})' class="btn btn-sm btn-outline">Ver Detalle</button>
+                                        </td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;">No hay reportes cerrados aún.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function renderShiftDetails(shiftId) {
+            const shift = state.shifts.find(s => s.id === shiftId);
+            if(!shift) return;
+
+            const transactionsHtml = shift.transactions.map(t => {
+                let detail = '';
+                if(t.type === 'sale') detail = t.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+                else if(t.type === 'sale_wholesale') detail = t.items.map(i => `${i.qty}x ${i.name} (x Mayor)`).join(', ');
+                else detail = `${t.amount} ${t.productName}`;
+                
+                let tName = t.type === 'sale' ? 'Venta' : (t.type === 'sale_wholesale' ? 'Venta x Mayor' : t.type);
+
+                return `
+                    <div style="border-bottom:1px solid #eee; padding:8px 0; font-size:0.85rem; display:flex; justify-content:space-between;">
+                        <span>${new Date(t.date).toLocaleTimeString()} - <strong style="${t.type === 'sale_wholesale' ? 'color:#b45309;' : ''}">${tName}</strong> (${detail})</span>
+                        <strong>${t.total ? formatCurrency(t.total) : '-'}</strong>
+                    </div>
+                `;
+            }).join('');
+
+            modalContainer.innerHTML = `
+                <div class="modal" style="max-width:600px;">
+                    <div class="modal-header">
+                        <h3>Detalle de Cierre</h3>
+                        <div style="font-size:0.9rem; opacity:0.8;">${shift.point} - ${shift.user}</div>
+                    </div>
+                    <div class="modal-body">
+                        <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:15px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <div><strong>Fecha:</strong> ${new Date(shift.date).toLocaleString()}</div>
+                            <div><strong>Ventas Totales (Caja):</strong> ${formatCurrency(shift.totalSales)}</div>
+                            <div><strong>Ventas Mayoristas:</strong> <span style="color:var(--color-wholesale)">${formatCurrency(shift.totalWholesale || 0)}</span></div>
+                            <div><strong>Ganancia Neta (Global):</strong> <span style="color:var(--color-success)">${formatCurrency(shift.totalProfit || 0)}</span></div> 
+                            <div><strong>Efectivo Esperado (Sistema):</strong> ${formatCurrency(shift.cashSales)}</div>
+                            <div><strong>Efectivo Real (Contado):</strong> ${formatCurrency(shift.realCash)}</div>
+                            <div style="grid-column: 1 / -1; border-top: 1px solid #e2e8f0; padding-top:10px;">
+                                <strong>Diferencia de Efectivo (Cuadre):</strong> <span style="font-size:1.2rem; font-weight:bold; color:${shift.cashDiff !== 0 ? 'red' : 'green'}">${formatCurrency(shift.cashDiff)}</span>
+                            </div>
+                        </div>
+                        <h4 style="margin-bottom:10px;">Movimientos del Turno</h4>
+                        <div style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; padding:10px; border-radius:6px;">
+                            ${transactionsHtml}
+                        </div>
+                        <button onclick="closeModal()" class="btn btn-primary" style="width:100%; margin-top:15px; justify-content:center;">Cerrar</button>
+                    </div>
+                </div>
+            `;
+            modalContainer.classList.remove('hidden');
+        }
+
+        function renderCounter() {
+            let total = 0;
+            DENOMINACIONES_CUP.forEach(denom => {
+                const count = state.billCounts[denom] || 0;
+                total += count * denom;
+            });
+
+            let html = `
+                <div style="max-width: 900px; margin: 0 auto;">
+                    
+                    <div class="stat-card" style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:center; background: var(--color-dark); color: white; border:none; box-shadow: var(--shadow);">
+                        <div>
+                            <h3 style="font-weight:bold; color:white; margin-bottom: 4px;">Contador de Efectivo</h3>
+                            <p style="font-size:0.85rem; opacity:0.7;">Ingrese la cantidad de billetes por denominación</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.75rem; opacity:0.8; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Total Contado</div>
+                            <div style="font-size:2.8rem; font-weight:800; line-height:1; color: #4ade80;" id="counter-total-display">
+                                ${formatCurrency(total)}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="counter-grid">
+                        ${DENOMINACIONES_CUP.map(denom => {
+                            const count = state.billCounts[denom] || '';
+                            const subtotal = (count || 0) * denom;
+                            const isActive = count > 0;
+                            
+                            return `
+                                <div class="counter-card ${isActive ? 'active-count' : ''}" id="card-${denom}">
+                                    <div class="denom-label">$${denom}</div>
+                                    <div class="input-group" style="margin-bottom:0;">
+                                        <input type="number" class="input-field" placeholder="0" value="${count}" 
+                                            onfocus="this.select()"
+                                            oninput="updateBillCount(${denom}, this.value)" 
+                                            style="text-align:center; font-size:1.25rem; font-weight:bold; padding:8px; border-radius:8px;">
+                                    </div>
+                                    <div class="subtotal-display" id="subtotal-${denom}">
+                                        ${isActive ? formatCurrency(subtotal) : '-'}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                     <div style="margin-top:24px; display:flex; justify-content:flex-end; gap:10px;">
+                        <button class="btn btn-outline" onclick="resetCounter()" style="background:white; border-color: #cbd5e1; color: #64748b;">
+                            🗑️ Limpiar Todo
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function updateBillCount(denom, val) {
+            const count = parseInt(val) || 0;
+            state.billCounts[denom] = count;
+            
+            const card = document.getElementById(`card-${denom}`);
+            const subDisplay = document.getElementById(`subtotal-${denom}`);
+            
+            if (count > 0) {
+                card.classList.add('active-count');
+                subDisplay.innerText = formatCurrency(count * denom);
+            } else {
+                card.classList.remove('active-count');
+                subDisplay.innerText = '-';
+            }
+            
+            let total = 0;
+            DENOMINACIONES_CUP.forEach(d => {
+                total += (state.billCounts[d] || 0) * d;
+            });
+            document.getElementById('counter-total-display').innerText = formatCurrency(total);
+        }
+
+        function resetCounter() {
+            state.billCounts = {};
+            renderCounter();
+        }
+
+        function renderDashboard() {
+            const isAdmin = state.currentUser.role === 'admin';
+            const uniquePoints = [...new Set(state.history.map(h => h.point || 'Desconocido'))];
+
+            let dataToAnalyze = state.history;
+
+            if (isAdmin) {
+                if (state.filterPoint !== 'All') {
+                    dataToAnalyze = dataToAnalyze.filter(h => h.point === state.filterPoint);
+                }
+            } else {
+                dataToAnalyze = dataToAnalyze.filter(h => h.user === state.currentUser.name && h.point === state.settings.pointName);
+            }
+
+            // Separación de Ventas Minoristas vs Mayoristas
+            const retailSales = dataToAnalyze.filter(h => h.type === 'sale');
+            const wholesaleSales = dataToAnalyze.filter(h => h.type === 'sale_wholesale');
+
+            const cashSales = retailSales.filter(h => !h.method || h.method === 'cash').reduce((acc, c) => acc + c.total, 0);
+            const transferSales = retailSales.filter(h => h.method === 'transfer').reduce((acc, c) => acc + c.total, 0);
+            const totalRetailSales = cashSales + transferSales;
+            
+            const totalWholesaleSales = wholesaleSales.reduce((acc, c) => acc + c.total, 0);
+
+            // Costos y Beneficios Consolidados
+            const totalRetailCost = retailSales.reduce((acc, c) => acc + (c.totalCost || c.total * 0.7), 0);
+            const totalWholesaleCost = wholesaleSales.reduce((acc, c) => acc + (c.totalCost || c.total * 0.7), 0);
+            
+            const totalExpenses = dataToAnalyze.filter(h => h.type === 'expense').reduce((acc, e) => acc + e.total, 0);
+            
+            // Ganancia Neta global (Minorista + Mayorista) - Gastos
+            const netProfit = (totalRetailSales - totalRetailCost) + (totalWholesaleSales - totalWholesaleCost) - totalExpenses;
+
+            const invValue = state.inventory.reduce((acc, curr) => acc + (curr.stock * (curr.cost || 0)), 0);
+            
+            const currentSessionWithdrawals = state.history.filter(h => 
+                h.type === 'withdrawal' && 
+                h.user === state.currentUser.name && 
+                h.point === state.settings.pointName
+            );
+            const totalWithdrawals = currentSessionWithdrawals.reduce((sum, w) => sum + w.total, 0);
+            
+            const currentSessionExpenses = state.history.filter(h => 
+                h.type === 'expense' && 
+                h.user === state.currentUser.name && 
+                h.point === state.settings.pointName
+            );
+            const totalSessionExpenses = currentSessionExpenses.reduce((sum, e) => sum + e.total, 0);
+
+
+            let html = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <div>
+                        <h3 style="font-weight:bold;">${isAdmin ? 'Resumen Global' : 'Mi Resumen'}</h3>
+                        <p style="font-size:0.8rem; color:#64748b;">
+                            ${isAdmin ? (state.filterPoint === 'All' ? 'Mostrando todos los puntos' : 'Punto: ' + state.filterPoint) : 'Sesión actual'}
+                        </p>
+                    </div>
+                    
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        ${isAdmin ? `
+                             <select onchange="state.filterPoint = this.value; renderDashboard()" style="padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-weight:bold;">
+                                <option value="All" ${state.filterPoint === 'All' ? 'selected' : ''}>Todos los Puntos</option>
+                                ${uniquePoints.map(p => `<option value="${p}" ${state.filterPoint === p ? 'selected' : ''}>${p}</option>`).join('')}
+                            </select>
+                        ` : ''}
+                        <button onclick="exportDashboardPDF()" class="btn btn-outline" style="border-color:var(--color-danger); color:var(--color-danger);">
+                            📄 Descargar Reporte PDF
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:#dcfce7; color:#166534;"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                        <div class="stat-value" id="sys-cash">${formatCurrency(cashSales)}</div>
+                        <div class="stat-label">Ventas en Efectivo (Caja)</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:#e0f2fe; color:#0369a1;"><svg class="icon" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg></div>
+                        <div class="stat-value">${formatCurrency(transferSales)}</div>
+                        <div class="stat-label">Ventas Transferencia (Caja)</div>
+                    </div>
+
+                    <!-- NUEVA TARJETA MAYORISTA PARA ADMIN -->
+                    ${isAdmin && state.settings.wholesaleEnabled ? `
+                        <div class="stat-card" style="border-color: #fde68a;">
+                            <div class="stat-icon" style="background:#fef3c7; color:#d97706;"><svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div>
+                            <div class="stat-value" style="color: #b45309;">${formatCurrency(totalWholesaleSales)}</div>
+                            <div class="stat-label">Ventas x Mayor (Aislado)</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${isAdmin ? `
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#ecfdf5; color:#047857;"><svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+                            <div class="stat-value">${formatCurrency(netProfit)}</div>
+                            <div class="stat-label">Utilidad Neta (General)</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${isAdmin ? `
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:#dbeafe; color:#1e40af;"><svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+                        <div class="stat-value">${formatCurrency(invValue)}</div>
+                        <div class="stat-label">Valor Inventario (Costo)</div>
+                    </div>
+                    ` : ''}
+
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:#fee2e2; color:#991b1b;"><svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></div>
+                        <div class="stat-value">${formatCurrency(totalExpenses)}</div>
+                        <div class="stat-label">Total Gastos/Pérdidas</div>
+                    </div>
+                </div>
+
+                ${!isAdmin ? `
+                    <div class="arqueo-box">
+                        <h4 style="margin-bottom:15px; font-weight:bold;">🧮 Arqueo de Caja (Cierre)</h4>
+                        <p style="font-size:0.8rem; color:#64748b; margin-bottom:15px;">Nota: Las ventas "x Mayor" están aisladas y no cuentan para el efectivo de esta caja.</p>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Salidas de Caja (Extracciones + Gastos)</label>
+                                <div style="display:flex; gap:5px;">
+                                    <input type="text" class="input-field" value="${formatCurrency(totalWithdrawals + totalSessionExpenses)}" disabled style="background:#f1f5f9; color:#64748b; font-weight:bold;">
+                                </div>
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Efectivo Real en Caja (Contado)</label>
+                                <input type="number" id="cash-real" class="input-field" placeholder="0.00" 
+                                    value="${state.tempArqueo.realCash || ''}"
+                                    oninput="updateArqueoInput('realCash', this.value, ${cashSales})">
+                            </div>
+                        </div>
+                        <div id="arqueo-result-container">
+                        </div>
+                        
+                        <button onclick="closeShift()" class="btn btn-danger" style="width:100%; justify-content:center; padding:12px; margin-top:15px;">
+                            ✅ Confirmar y Cerrar MI Turno
+                        </button>
+                         <p style="font-size:0.8rem; color:#64748b; margin-top:10px; text-align:center;">
+                            Al cerrar, el sistema calculará tu salario y actualizará el inventario.
+                        </p>
+                    </div>
+                ` : ''}
+
+                <div class="stat-card">
+                    <h4 style="margin-bottom:15px; font-weight:bold; display:flex; align-items:center; gap:10px;">
+                        <span style="color:#f97316;">⚠</span> Alertas de Stock Bajo
+                    </h4>
+                    ${state.inventory.filter(i => i.stock < 10).map(i => `
+                        <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #f1f5f9;">
+                            <span>${i.name}</span>
+                            <span style="color:#c2410c; font-weight:bold;">${i.stock} rest.</span>
+                        </div>
+                    `).join('')}
+                    ${state.inventory.filter(i => i.stock < 10).length === 0 ? '<p style="color:#94a3b8;">Todo el inventario está saludable.</p>' : ''}
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+
+            if (!isAdmin) {
+                calcArqueo(cashSales, totalWithdrawals + totalSessionExpenses);
+            }
+        }
+
+        function updateArqueoInput(field, val, systemSales) {
+            state.tempArqueo[field] = val; 
+            saveData();
+            
+            const currentWithdrawals = state.history.filter(h => 
+                h.type === 'withdrawal' && 
+                h.user === state.currentUser.name && 
+                h.point === state.settings.pointName
+            );
+            const totalWithdrawn = currentWithdrawals.reduce((sum, w) => sum + w.total, 0);
+
+            const currentExpenses = state.history.filter(h => 
+                h.type === 'expense' && 
+                h.user === state.currentUser.name && 
+                h.point === state.settings.pointName
+            );
+            const totalExpenses = currentExpenses.reduce((sum, e) => sum + e.total, 0);
+            
+            calcArqueo(systemSales, totalWithdrawn + totalExpenses);
+        }
+
+        function exportDashboardPDF() {
+            const isAdmin = state.currentUser.role === 'admin';
+            let dataToAnalyze = state.history;
+
+            if (isAdmin) {
+                if (state.filterPoint !== 'All') {
+                    dataToAnalyze = dataToAnalyze.filter(h => h.point === state.filterPoint);
+                }
+            } else {
+                dataToAnalyze = dataToAnalyze.filter(h => h.user === state.currentUser.name && h.point === state.settings.pointName);
+            }
+
+            const retailSales = dataToAnalyze.filter(h => h.type === 'sale');
+            const wholesaleSales = dataToAnalyze.filter(h => h.type === 'sale_wholesale');
+
+            const cashSales = retailSales.filter(h => (!h.method || h.method === 'cash')).reduce((acc, c) => acc + c.total, 0);
+            const transferSales = retailSales.filter(h => h.method === 'transfer').reduce((acc, c) => acc + c.total, 0);
+            
+            const totalWholesale = wholesaleSales.reduce((acc, c) => acc + c.total, 0);
+            const totalSales = cashSales + transferSales + totalWholesale;
+            const totalExpenses = dataToAnalyze.filter(h => h.type === 'expense').reduce((acc, e) => acc + e.total, 0);
+
+            const element = document.createElement('div');
+            element.style.padding = '20px';
+            element.style.fontFamily = 'Arial, sans-serif';
+            element.innerHTML = `
+                <div style="text-align:center; margin-bottom:20px; border-bottom:2px solid #333; padding-bottom:10px;">
+                    <h1 style="margin:0;">Micuadre POS</h1>
+                    <h3 style="margin:5px 0; color:#666;">Reporte de Turno / Cierre</h3>
+                </div>
+                <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:20px;">
+                    <h4 style="margin-top:0; border-bottom:1px solid #ccc; padding-bottom:5px;">Resumen</h4>
+                    <table style="width:100%; border-collapse:collapse;">
+                        <tr><td>Ventas Efectivo (Caja):</td><td style="text-align:right;">${formatCurrency(cashSales)}</td></tr>
+                        <tr><td>Ventas Transferencia (Caja):</td><td style="text-align:right;">${formatCurrency(transferSales)}</td></tr>
+                        <tr><td style="color:#b45309;">Ventas x Mayor (Aislado):</td><td style="text-align:right; color:#b45309;">${formatCurrency(totalWholesale)}</td></tr>
+                        <tr><td><strong>Total Ingresos Brutos:</strong></td><td style="text-align:right;"><strong>${formatCurrency(totalSales)}</strong></td></tr>
+                        <tr><td style="color:#991b1b;">Gastos / Mermas:</td><td style="text-align:right; color:#991b1b;">- ${formatCurrency(totalExpenses)}</td></tr>
+                    </table>
+                </div>
+            `;
+
+            const opt = {
+                margin: 10,
+                filename: `Cierre_${state.settings.pointName}_${new Date().toLocaleDateString().replace(/\//g,'-')}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
+        function calcArqueo(systemSales, withdrawalTotal = 0) {
+            if (withdrawalTotal === undefined || withdrawalTotal === 0) {
+                 const currentWithdrawals = state.history.filter(h => h.type === 'withdrawal' && h.user === state.currentUser.name && h.point === state.settings.pointName);
+                const currentExpenses = state.history.filter(h => h.type === 'expense' && h.user === state.currentUser.name && h.point === state.settings.pointName);
+                withdrawalTotal = currentWithdrawals.reduce((sum, w) => sum + w.total, 0) + currentExpenses.reduce((sum, e) => sum + e.total, 0);
+            }
+
+            const realCash = parseFloat(document.getElementById('cash-real')?.value || state.tempArqueo.realCash) || 0;
+            const container = document.getElementById('arqueo-result-container');
+
+            if (!container) return;
+
+            const expectedCash = systemSales - withdrawalTotal;
+            const diff = realCash - expectedCash;
+
+            let statusClass = 'arqueo-ok';
+            let statusText = 'Cuadre Perfecto';
+            let sign = '';
+
+            if (diff < -0.5) { 
+                statusClass = 'arqueo-warn';
+                statusText = 'FALTANTE (Dinero perdido)';
+                sign = '';
+            } else if (diff > 0.5) {
+                statusClass = 'arqueo-surplus';
+                statusText = 'EXCEDENTE (Sobra dinero)';
+                sign = '+';
+            }
+
+            container.innerHTML = `
+                <div style="font-size:0.9rem; margin-bottom:5px; color:#64748b;">Debería haber: ${formatCurrency(expectedCash)}</div>
+                <div class="arqueo-result ${statusClass}">
+                    <span>${statusText}</span>
+                    <span>${sign}${formatCurrency(diff)}</span>
+                </div>
+            `;
+        }
+
+        function closeShift() {
+            const realCashInput = document.getElementById('cash-real');
+            const realCashValue = realCashInput ? realCashInput.value : state.tempArqueo.realCash;
+            
+            if (realCashValue === '' || parseFloat(realCashValue) < 0) {
+                return alert("Por favor, ingrese el 'Efectivo Real' contado antes de cerrar.");
+            }
+
+            if (confirm(`¿CONFIRMAR CIERRE DE TURNO?`)) {
+                
+                const sessionHistory = state.history.filter(h => h.user === state.currentUser.name && h.point === state.settings.pointName);
+                
+                const retailSalesArr = sessionHistory.filter(h => h.type === 'sale');
+                const wholesaleSalesArr = sessionHistory.filter(h => h.type === 'sale_wholesale');
+
+                const cashSales = retailSalesArr.filter(h => (!h.method || h.method === 'cash')).reduce((acc, c) => acc + c.total, 0);
+                const transferSales = retailSalesArr.filter(h => h.method === 'transfer').reduce((acc, c) => acc + c.total, 0);
+                const totalSales = cashSales + transferSales; // Ventas retail
+                
+                const totalWholesale = wholesaleSalesArr.reduce((acc, c) => acc + c.total, 0);
+
+                const totalWithdrawals = sessionHistory.filter(h => h.type === 'withdrawal').reduce((acc, w) => acc + w.total, 0);
+                const totalExpenses = sessionHistory.filter(h => h.type === 'expense').reduce((acc, e) => acc + e.total, 0);
+                
+                // Profit conjunto
+                const retailProfit = retailSalesArr.reduce((acc, c) => acc + (c.profit || 0), 0);
+                const wholesaleProfit = wholesaleSalesArr.reduce((acc, c) => acc + (c.profit || 0), 0);
+                const totalProfit = retailProfit + wholesaleProfit;
+                
+                const realCash = parseFloat(realCashValue) || 0;
+                const expectedCash = cashSales - (totalWithdrawals + totalExpenses); // X Mayor no afecta aquí
+                
+                const shiftReport = {
+                    id: generateId(),
+                    date: new Date().toISOString(),
+                    user: state.currentUser.name,
+                    point: state.settings.pointName,
+                    totalSales, // Solo retail
+                    totalWholesale, // Almacenado separadamente
+                    totalProfit, 
+                    cashSales, 
+                    transferSales,
+                    withdrawal: totalWithdrawals, 
+                    expenses: totalExpenses, 
+                    realCash,
+                    cashDiff: realCash - expectedCash,
+                    transactions: sessionHistory
+                };
+
+                // CALCULAR SALARIO DEL TRABAJADOR
+                const user = state.currentUser;
+                let payAmount = user.salaryConfig.base || 0; 
+                
+                if (user.salaryConfig.type === 'percent' || user.salaryConfig.type === 'mixed') {
+                    const ventasComisionables = totalSales + totalWholesale;
+                    payAmount += (ventasComisionables * (user.salaryConfig.percent || 0) / 100);
+                } else if (user.salaryConfig.type === 'fixed_action') {
+                    const qtyStr = prompt(`Para calcular tu salario: ¿Cuántas '${user.salaryConfig.actionName}' realizaste en este turno?`, "0");
+                    const qty = parseFloat(qtyStr) || 0;
+                    payAmount += (qty * (user.salaryConfig.actionRate || 0));
+                }
+
+                // Registrar pago pendiente en nómina
+                if (payAmount > 0) {
+                    state.payroll.push({
+                        id: generateId(),
+                        employeeId: user.id,
+                        amount: payAmount,
+                        date: new Date().toISOString(),
+                        reason: 'Turno Completado',
+                        status: 'pending'
+                    });
+                }
+
+                if(!state.shifts) state.shifts = [];
+                state.shifts.unshift(shiftReport);
+
+                state.history = state.history.filter(h => !(h.user === state.currentUser.name && h.point === state.settings.pointName));
+                state.cart = [];
+                state.wholesaleCart = [];
+                state.tempArqueo = { withdrawal: '', realCash: '' };
+                
+                saveData();
+                renderDashboard();
+                alert(`Turno cerrado. Salario generado para nómina: ${formatCurrency(payAmount)}`);
+                logout(); 
+            }
+        }
+
+        window.toggleUnitsBox = function(val) {
+            const group = document.getElementById('units-box-group');
+            if (group) {
+                if (val === 'x Mayor') group.classList.remove('hidden');
+                else group.classList.add('hidden');
+            }
+        }
+
+        function openAddUserModal() {
+            modalContainer.innerHTML = `
+                <div class="modal">
+                    <div class="modal-header"><h3>Nuevo Trabajador</h3></div>
+                    <div class="modal-body">
+                        <div class="input-group"><label>Nombre</label><input id="new-u-name" class="input-field"></div>
+                        
+                        <div class="input-group">
+                            <label>Rol</label>
+                            <select id="new-u-role" class="input-field">
+                                <option value="worker">Dependiente (Cajero)</option>
+                                <option value="estibador">Estibador</option>
+                                <option value="economico">Económico</option>
+                                <option value="custodio">Custodio</option>
+                                <option value="distribuidor">Distribuidor</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>¿Acceso al Sistema?</label>
+                            <select id="new-u-access" class="input-field" onchange="togglePassField(this.value)">
+                                <option value="yes">Sí (Requiere Contraseña)</option>
+                                <option value="no">No (Solo control de nómina)</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group" id="pass-group"><label>Contraseña</label><input id="new-u-pass" type="text" class="input-field"></div>
+
+                        <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
+                        <h4 style="margin-bottom:10px;">Configuración de Pago</h4>
+                        
+                        <div class="input-group">
+                            <label>Tipo de Pago</label>
+                            <select id="pay-type" class="input-field" onchange="togglePayInputs(this.value)">
+                                <option value="fixed">Solo Salario Fijo</option>
+                                <option value="percent">Solo Comisión (%)</option>
+                                <option value="mixed">Mixto (Fijo + %)</option>
+                                <option value="fixed_action">Fijo + Pago por Acción</option>
+                            </select>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                            <div class="input-group" id="base-group">
+                                <label>Monto Fijo ($)</label>
+                                <input id="pay-base" type="number" class="input-field" placeholder="0">
+                            </div>
+                            <div class="input-group hidden" id="percent-group">
+                                <label>Comisión (%)</label>
+                                <input id="pay-percent" type="number" class="input-field" placeholder="0">
+                            </div>
+                            <div class="input-group hidden" id="action-rate-group">
+                                <label>Pago x Acción ($)</label>
+                                <input id="pay-action-rate" type="number" class="input-field" placeholder="Ej: 40">
+                            </div>
+                            <div class="input-group hidden" id="action-name-group">
+                                <label>Nombre de Acción</label>
+                                <input id="pay-action-name" type="text" class="input-field" placeholder="Ej: cajas">
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Frecuencia de Pago</label>
+                            <select id="pay-freq" class="input-field">
+                                <option value="daily">Diario (Por Turno)</option>
+                                <option value="weekly">Semanal</option>
+                                <option value="monthly">Mensual</option>
+                            </select>
+                        </div>
+
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <button onclick="closeModal()" class="btn btn-outline" style="flex:1; justify-content:center;">Cancelar</button>
+                            <button onclick="submitNewUser()" class="btn btn-primary" style="flex:1; justify-content:center;">Crear</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modalContainer.classList.remove('hidden');
+        }
+
+        function togglePassField(val) {
+            const grp = document.getElementById('pass-group');
+            if (val === 'yes') grp.classList.remove('hidden');
+            else grp.classList.add('hidden');
+        }
+
+        function togglePayInputs(type) {
+            const base = document.getElementById('base-group');
+            const percent = document.getElementById('percent-group');
+            const actionRate = document.getElementById('action-rate-group');
+            const actionName = document.getElementById('action-name-group');
+            
+            base.classList.add('hidden');
+            percent.classList.add('hidden');
+            actionRate.classList.add('hidden');
+            actionName.classList.add('hidden');
+
+            if (type === 'fixed') {
+                base.classList.remove('hidden');
+            } else if (type === 'percent') {
+                percent.classList.remove('hidden');
+            } else if (type === 'mixed') {
+                base.classList.remove('hidden');
+                percent.classList.remove('hidden');
+            } else if (type === 'fixed_action') {
+                base.classList.remove('hidden');
+                actionRate.classList.remove('hidden');
+                actionName.classList.remove('hidden');
+            }
+        }
+
+        function submitNewUser() {
+            const name = document.getElementById('new-u-name').value;
+            const role = document.getElementById('new-u-role').value;
+            const access = document.getElementById('new-u-access').value === 'yes';
+            const pass = document.getElementById('new-u-pass').value;
+            
+            const payType = document.getElementById('pay-type').value;
+            const base = parseFloat(document.getElementById('pay-base').value) || 0;
+            const percent = parseFloat(document.getElementById('pay-percent').value) || 0;
+            const actionRate = parseFloat(document.getElementById('pay-action-rate').value) || 0;
+            const actionName = document.getElementById('pay-action-name').value.trim() || 'acciones';
+            const freq = document.getElementById('pay-freq').value;
+
+            if (!name) return alert("Nombre requerido");
+            if (access && !pass) return alert("Contraseña requerida para acceso al sistema");
+
+            addUser({
+                name,
+                role,
+                canLogin: access,
+                password: pass,
+                salaryConfig: {
+                    type: payType,
+                    base: base,
+                    percent: percent,
+                    actionRate: actionRate,
+                    actionName: actionName,
+                    frequency: freq
+                }
+            });
+        }
+
+        function openPriceModal(id) {
+            const item = state.inventory.find(i => i.id === id);
+            const profit = (item.price - item.cost);
+            const isW = item.category === 'x Mayor';
+            
+            modalContainer.innerHTML = `
+                <div class="modal">
+                    <div class="modal-header"><h3>Editar Precio: ${item.name}</h3></div>
+                    <div class="modal-body">
+                        ${isW ? `
+                        <div class="input-group">
+                            <label>Unidades por Caja</label>
+                            <input id="edit-units" type="number" class="input-field" value="${item.unitsPerBox || 1}">
+                        </div>
+                        ` : ''}
+                        <div class="input-group">
+                            <label>Costo (Precio de Compra)</label>
+                            <input id="edit-cost" type="number" class="input-field" value="${item.cost || 0}" oninput="calcEditMargin()">
+                        </div>
+                         <div class="input-group">
+                            <label>Precio de Venta</label>
+                            <input id="edit-price" type="number" class="input-field" value="${item.price}" oninput="calcEditMargin()">
+                        </div>
+                        <div style="text-align:center; font-size:0.9rem; color:#64748b; margin-bottom:10px;">
+                            Margen: <strong id="edit-margin-display">${formatCurrency(profit)}</strong>
+                        </div>
+
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <button onclick="closeModal()" type="button" class="btn btn-outline" style="flex:1; justify-content:center;">Cancelar</button>
+                            <button onclick="updatePrice('${id}', document.getElementById('edit-cost').value, document.getElementById('edit-price').value, ${isW ? "document.getElementById('edit-units').value" : "null"})" type="button" class="btn btn-primary" style="flex:1; justify-content:center;">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modalContainer.classList.remove('hidden');
+        }
+        
+        function calcEditMargin() {
+            const c = parseFloat(document.getElementById('edit-cost').value) || 0;
+            const p = parseFloat(document.getElementById('edit-price').value) || 0;
+            document.getElementById('edit-margin-display').innerText = formatCurrency(p - c);
+        }
+
+        function openAddProductModal() {
+            modalContainer.innerHTML = `
+                <div class="modal">
+                    <div class="modal-header"><h3>Nuevo Producto</h3></div>
+                    <div class="modal-body">
+                        <div class="input-group"><label>Nombre</label><input id="new-name" class="input-field"></div>
+                        <div class="input-group">
+                            <label>Categoría</label>
+                            <select id="new-cat" class="input-field" onchange="toggleUnitsBox(this.value)">
+                                ${state.categories.filter(c => c !== 'Todas').map(c => `<option value="${c}">${c}</option>`).join('')}
+                            </select>
+                        </div>
+                        
+                        <div class="input-group hidden" id="units-box-group">
+                            <label>Unidades por Caja (Al por Mayor)</label>
+                            <input id="new-units-box" type="number" class="input-field" value="1">
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                             <div class="input-group">
+                                <label>Costo (PC)</label>
+                                <input id="new-cost" type="number" class="input-field" placeholder="0.00" oninput="calcNewMargin()">
+                            </div>
+                            <div class="input-group">
+                                <label>Venta (PV)</label>
+                                <input id="new-price" type="number" class="input-field" placeholder="0.00" oninput="calcNewMargin()">
+                            </div>
+                        </div>
+                         <div style="text-align:center; font-size:0.9rem; color:#64748b; margin-bottom:10px;">
+                            Margen Estimado: <strong id="new-margin-display">$0.00</strong>
+                        </div>
+
+                        <div class="input-group"><label>Stock Inicial</label><input id="new-stock" type="number" class="input-field" value="0"></div>
+
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <button onclick="closeModal()" type="button" class="btn btn-outline" style="flex:1; justify-content:center;">Cancelar</button>
+                            <button onclick="addProduct(document.getElementById('new-name').value, document.getElementById('new-cost').value, document.getElementById('new-price').value, document.getElementById('new-stock').value, document.getElementById('new-cat').value, document.getElementById('new-units-box').value)" type="button" class="btn btn-primary" style="flex:1; justify-content:center;">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modalContainer.classList.remove('hidden');
+            
+            // Activar visualmente si "x Mayor" es la primera en salir por defecto
+            const selector = document.getElementById('new-cat');
+            if(selector) window.toggleUnitsBox(selector.value);
+        }
+        
+        function calcNewMargin() {
+            const c = parseFloat(document.getElementById('new-cost').value) || 0;
+            const p = parseFloat(document.getElementById('new-price').value) || 0;
+            document.getElementById('new-margin-display').innerText = formatCurrency(p - c);
+        }
+
+        function openAdjustModal(id) {
+            const item = state.inventory.find(i => i.id === id);
+            modalContainer.innerHTML = `
+                <div class="modal">
+                    <div class="modal-header"><h3>Ajustar Stock: ${item.name}</h3></div>
+                    <div class="modal-body">
+                        <p style="margin-bottom:15px; text-align:center; color:#64748b;">Stock actual: <strong>${item.stock}</strong></p>
+                        <div class="input-group">
+                            <label>Cantidad a ajustar</label>
+                            <input id="adj-amount" type="number" class="input-field" autofocus>
+                        </div>
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <button onclick="adjustStock('${id}', document.getElementById('adj-amount').value, 'loss')" type="button" class="btn btn-danger" style="flex:1; justify-content:center;">Merma (-)</button>
+                            <button onclick="adjustStock('${id}', document.getElementById('adj-amount').value, 'add')" type="button" class="btn btn-primary" style="flex:1; justify-content:center; background:var(--color-success);">Entrada (+)</button>
+                        </div>
+                        <button onclick="closeModal()" type="button" class="btn btn-outline" style="width:100%; justify-content:center; margin-top:10px;">Cancelar</button>
+                    </div>
+                </div>
+            `;
+            modalContainer.classList.remove('hidden');
+        }
+
+        function renderCharts() {
+            const isAdmin = state.currentUser.role === 'admin';
+            const shiftHistory = state.shifts ? state.shifts.flatMap(s => s.transactions) : [];
+            let allHistory = [...state.history, ...shiftHistory]; 
+
+            if (!isAdmin) {
+                allHistory = allHistory.filter(h => h.user === state.currentUser.name && h.point === state.settings.pointName);
+            }
+
+            const productSales = {};
+            
+            allHistory.forEach(record => {
+                if ((record.type === 'sale' || record.type === 'sale_wholesale') && record.items) {
+                    record.items.forEach(item => {
+                        productSales[item.name] = (productSales[item.name] || 0) + item.qty;
+                    });
+                }
+            });
+
+            const sortedProducts = Object.entries(productSales)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5); 
+
+            const topProductsLabels = sortedProducts.map(p => p[0]);
+            const topProductsData = sortedProducts.map(p => p[1]);
+
+            const last7Days = {};
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                last7Days[date.toLocaleDateString()] = { sales: 0, profit: 0 };
+            }
+
+            allHistory.forEach(record => {
+                if (record.type === 'sale' || record.type === 'sale_wholesale') {
+                    const recordDate = new Date(record.date).toLocaleDateString();
+                    if (last7Days[recordDate]) {
+                        last7Days[recordDate].sales += record.total;
+                        last7Days[recordDate].profit += (record.profit || 0); 
+                    }
+                }
+            });
+
+            const weeklyLabels = Object.keys(last7Days);
+            const weeklySalesData = Object.values(last7Days).map(d => d.sales);
+            const weeklyProfitData = Object.values(last7Days).map(d => d.profit);
+
+            const categorySales = {};
+            allHistory.forEach(record => {
+                if ((record.type === 'sale' || record.type === 'sale_wholesale') && record.items) {
+                    record.items.forEach(item => {
+                        const cat = item.category || 'Otros';
+                        categorySales[cat] = (categorySales[cat] || 0) + (item.price * item.qty);
+                    });
+                }
+            });
+            const catLabels = Object.keys(categorySales);
+            const catData = Object.values(categorySales);
+
+
+            let html = `
+                <div style="margin-bottom: 20px;">
+                    <h3 style="font-weight:bold;">${isAdmin ? 'Estadísticas Globales' : 'Mis Estadísticas'}</h3>
+                    <p style="font-size:0.85rem; color:#64748b;">Análisis de rendimiento de los últimos 7 días.</p>
+                </div>
+                <div class="charts-grid">
+                    <div class="stat-card chart-container">
+                        <canvas id="topProductsChart"></canvas>
+                    </div>
+                    <div class="stat-card chart-container">
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                    <div class="stat-card chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app-content').innerHTML = html;
+
+            new Chart(document.getElementById('topProductsChart'), {
+                type: 'bar',
+                data: {
+                    labels: topProductsLabels,
+                    datasets: [{
+                        label: 'Unidades Vendidas',
+                        data: topProductsData,
+                        backgroundColor: 'rgba(236, 72, 153, 0.6)',
+                        borderColor: 'rgba(236, 72, 153, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: 'Top 5 Productos Más Vendidos' } }
+                }
+            });
+
+            const weeklyDatasets = [
+                {
+                    label: 'Ventas ($)',
+                    data: weeklySalesData,
+                    borderColor: '#3b82f6',
+                    tension: 0.1
+                }
+            ];
+
+            if (isAdmin) {
+                weeklyDatasets.push({
+                    label: 'Ganancias ($)',
+                    data: weeklyProfitData,
+                    borderColor: '#22c55e',
+                    tension: 0.1
+                });
+            }
+
+            new Chart(document.getElementById('weeklyChart'), {
+                type: 'line',
+                data: {
+                    labels: weeklyLabels,
+                    datasets: weeklyDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: isAdmin ? 'Ventas y Ganancias (7 Días)' : 'Mis Ventas (7 Días)' } }
+                }
+            });
+
+            new Chart(document.getElementById('categoryChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catData,
+                        backgroundColor: [
+                            '#ec4899', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: 'Ventas por Categoría ($)' } }
+                }
+            });
+        }
+
+        init();
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registrado:', reg.scope))
+                    .catch(err => console.log('Error SW:', err));
+            });
+        }
+    </script>
+</body>
+</html>
